@@ -3,6 +3,7 @@
   import { formatGigabyteValue } from "$lib/utils/format";
 
   type Props = {
+    idSuffix: string;
     title: string;
     tone: "cpu" | "memory";
     stats: MetricStats | null;
@@ -13,6 +14,7 @@
   };
 
   let {
+    idSuffix,
     title,
     tone,
     stats,
@@ -26,7 +28,7 @@
   const height = 76;
   const padding = 8;
   let titleId = $derived(
-    `metric-chart-${title.toLowerCase().replaceAll(/\s+/g, "-")}`,
+    `metric-chart-${title.toLowerCase().replaceAll(/\s+/g, "-")}-${idSuffix}`,
   );
 
   function yForValue(value: number, max: number) {

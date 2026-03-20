@@ -304,6 +304,7 @@
 
     <MetricSparkline
       error={statsError}
+      idSuffix={`${server.id}-cpu`}
       loading={statsLoading}
       stats={stats?.cpu ?? null}
       title="CPU load"
@@ -313,6 +314,7 @@
     <MetricSparkline
       ceiling={server.currentMemory / 1024}
       error={statsError}
+      idSuffix={`${server.id}-memory`}
       loading={statsLoading}
       stats={stats?.memory ?? null}
       title="RAM load"
