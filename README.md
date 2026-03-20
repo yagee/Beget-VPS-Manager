@@ -29,7 +29,7 @@ Local OpenAPI snapshots for development can be kept in `openapi/`, but they are 
 bun run dev
 bun run check
 bun run build
-bun run start
+bun run preview
 ```
 
 `bun run build` writes the static site to `build/`.
