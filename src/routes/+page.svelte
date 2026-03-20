@@ -28,10 +28,11 @@
   let loginPending = $state(false);
   let loginCodeRequired = $state(false);
   let query = $state("");
-  let configurableOnly = $state(false);
+  let page = $state(1);
+  let pageSize = $state(5);
 
   const storageKey = "beget-vps-manager:prefs";
-  const codeChallengeErrors = new Set([
+  const codeChallengeErrors = [
     "CODE_REQUIRED",
     "CODE_REQUIRED_EMAIL",
     "CODE_REQUIRED_SMS",
@@ -39,7 +40,7 @@
     "INCORRECT_CODE",
     "CODE_INPUT_LIMIT",
     "CODE_SENT_LIMIT",
-  ]);
+  ];
 
   let filteredServers = $derived.by(() => {
     const servers = dashboard?.servers ?? [];
@@ -47,10 +48,6 @@
 
     return servers
       .filter((server) => {
-        if (configurableOnly && !server.reconfigurable) {
-          return false;
-        }
-
         if (!normalizedQuery) {
           return true;
         }
@@ -79,6 +76,17 @@
   });
 
   let filteredCount = $derived(filteredServers.length);
+  let pageCount = $derived(Math.max(1, Math.ceil(filteredCount / pageSize)));
+  let currentPage = $derived(Math.min(page, pageCount));
+  let visibleServers = $derived.by(() => {
+    const offset = (currentPage - 1) * pageSize;
+    return filteredServers.slice(offset, offset + pageSize);
+  });
+  let pageStart = $derived(
+    filteredCount === 0 ? 0 : (currentPage - 1) * pageSize + 1,
+  );
+  let pageEnd = $derived(Math.min(currentPage * pageSize, filteredCount));
+  let pageItems = $derived(buildPageItems(currentPage, pageCount));
 
   onMount(() => {
     void (async () => {
@@ -89,11 +97,13 @@
           try {
             const parsed = JSON.parse(raw) as {
               query?: string;
-              configurableOnly?: boolean;
+              pageSize?: number;
             };
 
             query = parsed.query ?? "";
-            configurableOnly = Boolean(parsed.configurableOnly);
+            pageSize = [5, 10, 25].includes(parsed.pageSize ?? 0)
+              ? (parsed.pageSize as 5 | 10 | 25)
+              : 5;
           } catch (error) {
             console.warn("Failed to restore local UI preferences", error);
           }
@@ -120,10 +130,55 @@
       storageKey,
       JSON.stringify({
         query,
-        configurableOnly,
+        pageSize,
       }),
     );
   });
+
+  function buildPageItems(currentPage: number, totalPages: number) {
+    if (totalPages <= 7) {
+      return Array.from({ length: totalPages }, (_, index) => index + 1);
+    }
+
+    const items = [1, totalPages];
+
+    for (
+      let pageNumber = currentPage - 1;
+      pageNumber <= currentPage + 1;
+      pageNumber += 1
+    ) {
+      if (pageNumber > 1 && pageNumber < totalPages) {
+        items.push(pageNumber);
+      }
+    }
+
+    if (currentPage <= 3) {
+      items.push(2, 3, 4);
+    }
+
+    if (currentPage >= totalPages - 2) {
+      items.push(totalPages - 1, totalPages - 2, totalPages - 3);
+    }
+
+    const sorted = [...new Set(items)].sort((left, right) => left - right);
+    const output: Array<number | string> = [];
+
+    for (const item of sorted) {
+      const previousItem = output[output.length - 1];
+
+      if (typeof previousItem === "number" && item - previousItem > 1) {
+        output.push(`gap-${previousItem}-${item}`);
+      }
+
+      output.push(item);
+    }
+
+    return output;
+  }
+
+  function setPage(nextPage: number) {
+    page = Math.max(1, Math.min(nextPage, pageCount));
+  }
 
   function clearAuthentication(errorMessage?: string) {
     clearStoredToken();
@@ -176,7 +231,7 @@
     } catch (error) {
       if (error instanceof BegetClientError) {
         loginCodeRequired = error.code
-          ? codeChallengeErrors.has(error.code)
+          ? codeChallengeErrors.includes(error.code)
           : loginCodeRequired;
         loginError = error.message;
         return;
@@ -334,12 +389,27 @@
       <div class="filters">
         <label class="search">
           <span>Search fleet</span>
-          <input bind:value={query} placeholder="hostname, IP, region, status">
+          <input
+            bind:value={query}
+            oninput={() => {
+              setPage(1);
+            }}
+            placeholder="hostname, IP, region, status"
+          >
         </label>
 
-        <label class="toggle">
-          <input bind:checked={configurableOnly} type="checkbox">
-          <span>Show only servers that can be resized now</span>
+        <label class="page-size">
+          <span>Cards per page</span>
+          <select
+            bind:value={pageSize}
+            onchange={() => {
+              setPage(1);
+            }}
+          >
+            <option value={5}>5</option>
+            <option value={10}>10</option>
+            <option value={25}>25</option>
+          </select>
         </label>
 
         <div class="filter-note">
@@ -356,7 +426,7 @@
         <div class="loading-state">Loading the VPS deck...</div>
       {:else if dashboard}
         <div class="grid">
-          {#each filteredServers as server (`${server.id}:${server.currentCpuCount}:${server.currentMemory}:${server.status}`)}
+          {#each visibleServers as server (`${server.id}:${server.currentCpuCount}:${server.currentMemory}:${server.status}`)}
             <VpsCard
               onRefresh={loadDashboard}
               {server}
@@ -365,13 +435,61 @@
           {:else}
             <div class="empty-state">
               <h3>No VPS cards match the current filter.</h3>
-              <p>
-                Change the search query or disable the reconfigurable-only
-                toggle.
-              </p>
+              <p>Change the search query or switch to another page.</p>
             </div>
           {/each}
         </div>
+
+        {#if filteredCount > 0 && pageCount > 1}
+          <nav aria-label="VPS list pagination" class="pagination">
+            <div class="pagination-summary">
+              <strong>{pageStart}-{pageEnd}</strong>
+              <span>of {filteredCount} servers</span>
+            </div>
+
+            <div class="pagination-controls">
+              <button
+                class="page-button outline"
+                disabled={currentPage === 1}
+                onclick={() => {
+                  setPage(currentPage - 1);
+                }}
+                type="button"
+              >
+                Prev
+              </button>
+
+              {#each pageItems as item (item)}
+                {#if typeof item === "number"}
+                  <button
+                    aria-current={item === currentPage ? "page" : undefined}
+                    class:active={item === currentPage}
+                    class="page-button"
+                    onclick={() => {
+                      setPage(item);
+                    }}
+                    type="button"
+                  >
+                    {item}
+                  </button>
+                {:else}
+                  <span aria-hidden="true" class="page-gap">…</span>
+                {/if}
+              {/each}
+
+              <button
+                class="page-button outline"
+                disabled={currentPage === pageCount}
+                onclick={() => {
+                  setPage(currentPage + 1);
+                }}
+                type="button"
+              >
+                Next
+              </button>
+            </div>
+          </nav>
+        {/if}
       {/if}
     </section>
   {/if}
@@ -596,13 +714,26 @@
     font: inherit;
   }
 
-  .toggle {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    padding: 0.85rem 0.95rem;
+  .page-size {
+    display: grid;
+    gap: 0.45rem;
+  }
+
+  .page-size span {
+    font-size: 0.76rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: rgba(188, 205, 218, 0.62);
+  }
+
+  .page-size select {
+    min-width: 5.75rem;
+    padding: 0.85rem 1rem;
+    border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 999px;
-    background: rgba(255, 255, 255, 0.04);
+    background: rgba(6, 13, 23, 0.72);
+    color: #f5f8fb;
+    font: inherit;
   }
 
   .filter-note {
@@ -626,6 +757,61 @@
     display: grid;
     grid-template-columns: 1fr;
     gap: 1rem;
+  }
+
+  .pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.85rem 0.95rem;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 1.25rem;
+    background: rgba(8, 18, 31, 0.82);
+    backdrop-filter: blur(12px);
+  }
+
+  .pagination-summary strong,
+  .pagination-summary span {
+    display: block;
+  }
+
+  .pagination-summary strong {
+    font-size: 1.05rem;
+    color: #f5f8fb;
+  }
+
+  .pagination-summary span {
+    margin-top: 0.2rem;
+    font-size: 0.76rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(188, 205, 218, 0.62);
+  }
+
+  .pagination-controls {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.45rem;
+  }
+
+  .page-button {
+    min-width: 2.75rem;
+    padding-inline: 0.9rem;
+  }
+
+  .page-button.active {
+    background: linear-gradient(135deg, #ffd37a 0%, #d6a53f 100%);
+    color: #161004;
+  }
+
+  .page-gap {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2rem;
+    color: rgba(188, 205, 218, 0.62);
   }
 
   button {
@@ -654,7 +840,8 @@
     .auth-wrap,
     .masthead,
     .filters,
-    .toolbar {
+    .toolbar,
+    .pagination {
       grid-template-columns: 1fr;
     }
 
@@ -664,6 +851,14 @@
 
     h2 {
       max-width: none;
+    }
+
+    .pagination {
+      align-items: stretch;
+    }
+
+    .pagination-controls {
+      justify-content: flex-start;
     }
   }
 </style>

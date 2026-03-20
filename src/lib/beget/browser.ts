@@ -217,13 +217,39 @@ function summarize(points: MetricPoint[]): MetricStats {
   };
 }
 
-async function getServerList(token: string) {
+async function getServerListPage(token: string, offset: number, limit: number) {
   return begetRequest<GetListResponse>("/v1/vps/server/list", {
     token,
     searchParams: {
-      limit: 250,
+      offset,
+      limit,
     },
   });
+}
+
+async function getServerList(token: string) {
+  const pageSize = 250;
+  const firstPage = await getServerListPage(token, 0, pageSize);
+  const servers = [...(firstPage.vps ?? [])];
+  const totalCount = firstPage.total_count ?? servers.length;
+
+  if (servers.length >= totalCount) {
+    return {
+      ...firstPage,
+      vps: servers,
+    };
+  }
+
+  for (let offset = servers.length; offset < totalCount; offset += pageSize) {
+    const page = await getServerListPage(token, offset, pageSize);
+    servers.push(...(page.vps ?? []));
+  }
+
+  return {
+    ...firstPage,
+    vps: servers,
+    total_count: totalCount,
+  };
 }
 
 async function getConfiguratorInfo(
