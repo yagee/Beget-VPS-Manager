@@ -87,7 +87,11 @@ async function handleSubmit(event: SubmitEvent) {
 
 	<label class="check">
 		<input bind:checked={saveMe} type="checkbox" />
-		<span>Keep this session on this machine</span>
+		<span class="check-mark" aria-hidden="true"></span>
+		<span class="check-copy">
+			<strong>Keep this session on this machine</strong>
+			<small>Store the Beget token in this browser for the next visit.</small>
+		</span>
 	</label>
 
 	{#if error}
@@ -146,7 +150,8 @@ async function handleSubmit(event: SubmitEvent) {
 	}
 
 	.field span,
-	.check span {
+	.check-copy strong,
+	.check-copy small {
 		font-size: 0.88rem;
 		color: rgba(214, 227, 237, 0.86);
 	}
@@ -167,15 +172,97 @@ async function handleSubmit(event: SubmitEvent) {
 	}
 
 	.check {
+		position: relative;
 		display: flex;
-		align-items: center;
-		gap: 0.7rem;
+		align-items: flex-start;
+		gap: 0.85rem;
+		padding: 0.9rem 1rem;
+		border: 1px solid rgba(255, 255, 255, 0.08);
+		border-radius: 1rem;
+		background: rgba(8, 17, 26, 0.62);
+		cursor: pointer;
 	}
 
 	.check input {
-		width: 1rem;
-		height: 1rem;
+		position: absolute;
+		inset: 0;
+		opacity: 0;
+		cursor: pointer;
+	}
+
+	.check-mark {
+		position: relative;
+		flex: 0 0 1.2rem;
+		width: 1.2rem;
+		height: 1.2rem;
 		padding: 0;
+		margin-top: 0.1rem;
+		border: 1px solid rgba(255, 255, 255, 0.22);
+		border-radius: 0.38rem;
+		background: rgba(4, 10, 18, 0.88);
+		transition:
+			border-color 160ms ease,
+			background-color 160ms ease,
+			box-shadow 160ms ease,
+			transform 160ms ease;
+	}
+
+	.check-mark::after {
+		content: '';
+		position: absolute;
+		left: 0.38rem;
+		top: 0.16rem;
+		width: 0.28rem;
+		height: 0.56rem;
+		border-right: 2px solid #08131f;
+		border-bottom: 2px solid #08131f;
+		transform: rotate(45deg) scale(0.6);
+		opacity: 0;
+		transition:
+			opacity 140ms ease,
+			transform 140ms ease;
+	}
+
+	.check-copy {
+		display: grid;
+		gap: 0.16rem;
+	}
+
+	.check-copy strong {
+		font-size: 0.92rem;
+		font-weight: 600;
+		letter-spacing: 0.01em;
+	}
+
+	.check-copy small {
+		font-size: 0.8rem;
+		line-height: 1.45;
+		color: rgba(188, 205, 218, 0.72);
+	}
+
+	.check:hover {
+		border-color: rgba(125, 231, 243, 0.18);
+		background: rgba(10, 20, 32, 0.8);
+	}
+
+	.check:has(input:focus-visible) {
+		outline: 2px solid rgba(125, 231, 243, 0.55);
+		outline-offset: 2px;
+	}
+
+	.check:has(input:checked) .check-mark {
+		border-color: rgba(248, 184, 75, 0.95);
+		background: linear-gradient(135deg, #f8b84b, #ffd770);
+		box-shadow: 0 0 0 4px rgba(248, 184, 75, 0.12);
+	}
+
+	.check:has(input:checked) .check-mark::after {
+		opacity: 1;
+		transform: rotate(45deg) scale(1);
+	}
+
+	.check:has(input:checked) .check-copy strong {
+		color: #f6fbff;
 	}
 
 	.error {
