@@ -25,6 +25,9 @@
   const width = 260;
   const height = 76;
   const padding = 8;
+  let titleId = $derived(
+    `metric-chart-${title.toLowerCase().replaceAll(/\s+/g, "-")}`,
+  );
 
   function yForValue(value: number, max: number) {
     const normalizedValue = Math.min(max, Math.max(0, value));
@@ -135,7 +138,13 @@
   {:else if !plottedPoints.length}
     <div class="placeholder">No chart data</div>
   {:else}
-    <svg aria-label={title} class="chart" viewBox={`0 0 ${width} ${height}`}>
+    <svg
+      aria-labelledby={titleId}
+      class="chart"
+      role="img"
+      viewBox={`0 0 ${width} ${height}`}
+    >
+      <title id={titleId}>{title}</title>
       {#each gridValues as gridValue (gridValue)}
         <line
           class="grid"
