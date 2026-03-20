@@ -597,7 +597,6 @@
 
   .hero-copy p:last-child,
   .deck {
-    max-width: 55ch;
     line-height: 1.6;
     color: rgba(221, 232, 240, 0.78);
   }
