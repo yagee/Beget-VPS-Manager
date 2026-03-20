@@ -1,0 +1,40 @@
+{
+  "name": "beget-vps-manager",
+  "private": true,
+  "license": "MIT",
+  "author": "Roman Ryzhikov (https://github.com/yagee)",
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/yagee/Beget-VPS-Manager.git"
+  },
+  "homepage": "https://beget-vps-manager.dokploy.me/",
+  "bugs": {
+    "url": "https://github.com/yagee/Beget-VPS-Manager/issues"
+  },
+  "engines": {
+    "node": ">=20.19.0",
+    "bun": ">=1.2.0"
+  },
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev",
+    "prebuild": "bun run biome:check && bun run check",
+    "build": "vite build",
+    "preview": "vite preview --host 0.0.0.0 --port ${PORT:-4173}",
+    "prepare": "svelte-kit sync || echo ''",
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+    "biome:check": "biome check",
+    "biome:write": "biome check --write"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.4.8",
+    "@sveltejs/adapter-static": "^3.0.10",
+    "@sveltejs/kit": "^2.50.2",
+    "@sveltejs/vite-plugin-svelte": "^6.2.4",
+    "svelte": "^5.51.0",
+    "svelte-check": "^4.4.2",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.1"
+  }
+}
