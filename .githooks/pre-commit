@@ -1,0 +1,8 @@
+#!/usr/bin/env sh
+set -eu
+
+echo "Running Biome on staged files..."
+bun run biome:staged
+
+# Re-stage already tracked changes after autofixes.
+git update-index --again

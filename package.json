@@ -21,11 +21,12 @@
     "prebuild": "bun run biome:check && bun run check",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0 --port ${PORT:-4173}",
-    "prepare": "svelte-kit sync || echo ''",
+    "prepare": "(svelte-kit sync || echo '') && (git config core.hooksPath .githooks >/dev/null 2>&1 || true)",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
     "biome:check": "biome check",
-    "biome:write": "biome check --write"
+    "biome:write": "biome check --write",
+    "biome:staged": "biome check --write --staged"
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.8",
