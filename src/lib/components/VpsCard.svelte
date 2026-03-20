@@ -547,7 +547,7 @@
   </div>
 
   {#if calculating}
-    <p class="info">Recalculating cost and limits...</p>
+    <p class="info recalculating">Recalculating cost and limits...</p>
   {/if}
 
   {#if !server.reconfigurable && server.configurable}
@@ -623,6 +623,7 @@
 
 <style>
   .card {
+    position: relative;
     display: grid;
     gap: 1rem;
     padding: 1.2rem;
@@ -954,6 +955,17 @@
   .info.success {
     background: rgba(93, 232, 177, 0.12);
     color: #abf4d1;
+  }
+
+  .recalculating {
+    position: absolute;
+    left: 50%;
+    bottom: 1.1rem;
+    transform: translateX(-50%);
+    width: max-content;
+    max-width: calc(100% - 2.4rem);
+    z-index: 2;
+    box-shadow: 0 12px 30px rgba(3, 7, 16, 0.28);
   }
 
   .flags {
