@@ -207,12 +207,12 @@
 <svelte:head>
   <title>Beget VPS Manager</title>
   <meta
-    content="Local-first dashboard for Beget VPS authentication and single-screen CPU/RAM reconfiguration."
+    content="Static browser dashboard for Beget VPS authentication and single-screen CPU/RAM reconfiguration."
     name="description"
   >
   <meta content="Beget VPS Manager" property="og:title">
   <meta
-    content="Local-first dashboard for Beget VPS authentication and single-screen CPU/RAM reconfiguration."
+    content="Static browser dashboard for Beget VPS authentication and single-screen CPU/RAM reconfiguration."
     property="og:description"
   >
   <meta content="website" property="og:type">
@@ -229,7 +229,7 @@
   <meta content="summary_large_image" name="twitter:card">
   <meta content="Beget VPS Manager" name="twitter:title">
   <meta
-    content="Local-first dashboard for Beget VPS authentication and single-screen CPU/RAM reconfiguration."
+    content="Static browser dashboard for Beget VPS authentication and single-screen CPU/RAM reconfiguration."
     name="twitter:description"
   >
   <meta
@@ -244,7 +244,7 @@
   {#if !authReady}
     <section class="auth-wrap" transition:fade={{ duration: 180 }}>
       <div class="hero-copy">
-        <p class="kicker">Svelte 5 / Bun / Local-first</p>
+        <p class="kicker">Svelte 5 / Bun / Static client</p>
         <h2>Rule your Beget fleet without leaving one screen.</h2>
         <p>Restoring the local Beget session from this browser.</p>
       </div>
@@ -256,7 +256,7 @@
   {:else if !authenticated}
     <section class="auth-wrap" transition:fade={{ duration: 180 }}>
       <div class="hero-copy">
-        <p class="kicker">Svelte 5 / Bun / Local-first</p>
+        <p class="kicker">Svelte 5 / Bun / Static client</p>
         <h2>Rule your Beget fleet without leaving one screen.</h2>
         <p>
           This app keeps the Beget session in this browser and talks to the

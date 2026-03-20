@@ -1,6 +1,6 @@
 # Beget VPS Manager
 
-Local-first Svelte 5 web app for authenticating against Beget and managing VPS CPU/RAM changes from a single screen.
+Static Svelte 5 web app that authenticates directly with Beget and manages VPS CPU/RAM changes from a single screen.
 
 ![Beget VPS Manager social card](static/social-card.png)
 
@@ -50,5 +50,6 @@ PUBLIC_BEGET_AUTH_X_TOKEN=y0wcxs9n91mxf92
 - Auth is stored only in this browser, not on the app server.
 - The UI does not require a separate backend database.
 - The dashboard calls the Beget API directly from the browser.
+- The app is a browser client for Beget's live API, not an offline-first or synced local database app.
 - The app fetches VPS data, available configuration groups, and configurator limits.
 - Each VPS card supports live CPU/RAM recalculation and submitting a configuration change.
