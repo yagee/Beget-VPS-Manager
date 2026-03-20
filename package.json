@@ -7,7 +7,7 @@
     "type": "git",
     "url": "git+ssh://git@github.com/yagee/Beget-VPS-Manager.git"
   },
-  "homepage": "https://beget-vps-manager.dokploy.me/",
+  "homepage": "https://beget-vps-manager.yagee.me/",
   "bugs": {
     "url": "https://github.com/yagee/Beget-VPS-Manager/issues"
   },

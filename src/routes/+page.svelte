@@ -289,10 +289,10 @@
     property="og:description"
   >
   <meta content="website" property="og:type">
-  <meta content="https://beget-vps-manager.dokploy.me/" property="og:url">
+  <meta content="https://beget-vps-manager.yagee.me/" property="og:url">
   <meta content="Beget VPS Manager" property="og:site_name">
   <meta
-    content="https://beget-vps-manager.dokploy.me/social-card.png"
+    content="https://beget-vps-manager.yagee.me/social-card.png"
     property="og:image"
   >
   <meta
@@ -306,7 +306,7 @@
     name="twitter:description"
   >
   <meta
-    content="https://beget-vps-manager.dokploy.me/social-card.png"
+    content="https://beget-vps-manager.yagee.me/social-card.png"
     name="twitter:image"
   >
 </svelte:head>

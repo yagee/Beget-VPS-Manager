@@ -6,7 +6,7 @@ Static Svelte 5 web app that authenticates directly with Beget and manages VPS C
 
 ## Live
 
-https://beget-vps-manager.dokploy.me/
+https://beget-vps-manager.yagee.me/
 
 ## OpenAPI
 
