@@ -42,7 +42,6 @@ Optional override:
 
 ```bash
 PUBLIC_BEGET_API_BASE_URL=https://api.beget.com
-PUBLIC_BEGET_AUTH_X_TOKEN=y0wcxs9n91mxf92
 ```
 
 ## App shape

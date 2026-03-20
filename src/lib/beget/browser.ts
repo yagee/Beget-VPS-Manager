@@ -20,8 +20,6 @@ import type {
 
 const API_BASE_URL =
   import.meta.env.PUBLIC_BEGET_API_BASE_URL || "https://api.beget.com";
-const AUTH_X_TOKEN =
-  import.meta.env.PUBLIC_BEGET_AUTH_X_TOKEN || "y0wcxs9n91mxf92";
 
 type RequestOptions = {
   method?: "GET" | "POST" | "PUT";
@@ -284,9 +282,6 @@ export async function authenticate(
 ): Promise<{ token: string }> {
   const response = await begetRequest<AuthResponse>("/v1/auth", {
     method: "POST",
-    headers: {
-      "x-token": AUTH_X_TOKEN,
-    },
     body: {
       login: payload.login.trim().toLowerCase(),
       password: payload.password,
