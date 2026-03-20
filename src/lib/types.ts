@@ -17,6 +17,16 @@ export interface DashboardRange {
   availableMax: number;
 }
 
+export interface DashboardPreset {
+  id: string;
+  name: string;
+  cpuCount: number;
+  memory: number;
+  diskSize: number;
+  priceDay: number;
+  priceMonth: number;
+}
+
 export interface DashboardServer {
   id: string;
   slug: string;
@@ -29,6 +39,8 @@ export interface DashboardServer {
   technicalDomain: string;
   configurationName: string;
   configurationGroup: string;
+  currentConfigurationId: string;
+  currentConfigurationCustom: boolean;
   currentCpuCount: number;
   currentMemory: number;
   currentDiskSize: number;
@@ -40,7 +52,9 @@ export interface DashboardServer {
   manageEnabled: boolean;
   configurable: boolean;
   reconfigurable: boolean;
+  configuratorStatus: "loaded" | "unavailable" | "request_failed" | "missing";
   resizeBlockers: string[];
+  presets: DashboardPreset[];
   cpu: DashboardRange | null;
   memory: DashboardRange | null;
   flags: {

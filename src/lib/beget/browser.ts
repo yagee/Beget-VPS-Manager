@@ -4,6 +4,7 @@ import type {
   ChangeConfigurationResponse,
   ConfiguratorCalculationResponse,
   ConfiguratorInfoResponse,
+  GetAvailableConfigurationResponse,
   GetListResponse,
   StatisticGetCpuResponse,
   StatisticGetMemoryResponse,
@@ -111,10 +112,25 @@ async function begetRequest<T>(
   });
 
   const contentType = response.headers.get("content-type") ?? "";
+  const isJsonResponse = contentType.includes("application/json");
+
+  async function readJsonBody() {
+    try {
+      return await response.json();
+    } catch (error) {
+      throw new BegetClientError(
+        "Beget API returned an empty or invalid JSON response.",
+        {
+          status: response.status,
+          code: error instanceof Error ? error.name : undefined,
+        },
+      );
+    }
+  }
 
   if (!response.ok) {
-    if (contentType.includes("application/json")) {
-      const payload = await response.json();
+    if (isJsonResponse) {
+      const payload = await readJsonBody();
       const { message, code } = parseResponseError(payload);
       throw new BegetClientError(
         message || `Beget API request failed with ${response.status}.`,
@@ -134,7 +150,11 @@ async function begetRequest<T>(
     );
   }
 
-  return (await response.json()) as T;
+  if (response.status === 204 || !isJsonResponse) {
+    return undefined as T;
+  }
+
+  return (await readJsonBody()) as T;
 }
 
 function toMetricPoints(
@@ -220,6 +240,15 @@ async function getConfiguratorInfo(
   });
 }
 
+async function getAvailableConfigurations(token: string) {
+  return begetRequest<GetAvailableConfigurationResponse>(
+    "/v1/vps/configuration",
+    {
+      token,
+    },
+  );
+}
+
 export function isBegetClientError(error: unknown): error is BegetClientError {
   return error instanceof BegetClientError;
 }
@@ -263,8 +292,12 @@ export async function logout(token: string): Promise<void> {
 }
 
 export async function fetchDashboard(token: string) {
-  const listResponse = await getServerList(token);
+  const [listResponse, configurationResponse] = await Promise.all([
+    getServerList(token),
+    getAvailableConfigurations(token).catch(() => ({ configurations: [] })),
+  ]);
   const servers = listResponse.vps ?? [];
+  const configurations = configurationResponse.configurations ?? [];
   const uniqueKeys = new Map<
     string,
     { region: string; configurationGroup: string }
@@ -286,25 +319,48 @@ export async function fetchDashboard(token: string) {
 
   const configuratorEntries = await Promise.allSettled(
     Array.from(uniqueKeys.entries()).map(async ([key, params]) => {
-      const configurator = await getConfiguratorInfo(
-        token,
-        params.region,
-        params.configurationGroup,
-      );
+      try {
+        const configurator = await getConfiguratorInfo(
+          token,
+          params.region,
+          params.configurationGroup,
+        );
 
-      return [key, configurator] as const;
+        return { key, configurator } as const;
+      } catch (error) {
+        throw { key, error };
+      }
     }),
   );
 
   const configurators = new Map<string, ConfiguratorInfoResponse>();
+  const configuratorFailures = new Map<string, string>();
 
   for (const result of configuratorEntries) {
     if (result.status === "fulfilled") {
-      configurators.set(result.value[0], result.value[1]);
+      configurators.set(result.value.key, result.value.configurator);
+      continue;
+    }
+
+    const rejected = result.reason as
+      | { key?: string; error?: unknown }
+      | undefined;
+    const reason =
+      rejected?.error instanceof Error
+        ? rejected.error.message
+        : "Unknown configurator request failure.";
+
+    if (rejected?.key) {
+      configuratorFailures.set(rejected.key, reason);
     }
   }
 
-  return buildDashboardPayload(servers, configurators);
+  return buildDashboardPayload(
+    servers,
+    configurators,
+    configuratorFailures,
+    configurations,
+  );
 }
 
 export async function fetchVpsStats(
@@ -404,16 +460,17 @@ export async function updateServerConfiguration(
     {
       method: "PUT",
       token,
-      body: {
-        ...(params.configurationId
-          ? { configuration_id: params.configurationId }
-          : {}),
-        configuration_params: {
-          cpu_count: params.cpuCount,
-          memory: params.memory,
-          disk_size: params.diskSize,
-        },
-      },
+      body: params.configurationId
+        ? {
+            configuration_id: params.configurationId,
+          }
+        : {
+            configuration_params: {
+              cpu_count: params.cpuCount,
+              memory: params.memory,
+              disk_size: params.diskSize,
+            },
+          },
     },
   );
 

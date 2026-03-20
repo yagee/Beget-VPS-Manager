@@ -24,6 +24,9 @@
 
   let cpuCount = $state(0);
   let memory = $state(0);
+  let diskSize = $state(0);
+  let configurationMode = $state<"custom" | "preset">("custom");
+  let selectedPresetId = $state("");
   let calculation = $state<CalculationPayload | null>(null);
   let calculationError = $state<string | null>(null);
   let savingError = $state<string | null>(null);
@@ -44,14 +47,41 @@
     { value: "MONTH", label: "1M" },
   ];
 
+  let selectedPreset = $derived(
+    server.presets.find((preset) => preset.id === selectedPresetId) ?? null,
+  );
   let isDirty = $derived(
-    cpuCount !== server.currentCpuCount || memory !== server.currentMemory,
+    configurationMode === "preset" && selectedPreset
+      ? selectedPreset.id !== server.currentConfigurationId
+      : cpuCount !== server.currentCpuCount ||
+          memory !== server.currentMemory ||
+          diskSize !== server.currentDiskSize,
   );
   let projectedPriceMonth = $derived(
-    calculation?.priceMonth ?? server.currentPriceMonth,
+    configurationMode === "preset" && selectedPreset
+      ? selectedPreset.priceMonth
+      : (calculation?.priceMonth ?? server.currentPriceMonth),
   );
   let priceDeltaMonth = $derived(
     projectedPriceMonth - server.currentPriceMonth,
+  );
+  let hasPresetOptions = $derived(server.presets.length > 0);
+  let showPlanCard = $derived(!server.currentConfigurationCustom);
+  let canSwitchToCustom = $derived(server.configurable);
+  let showConfigurationMode = $derived(
+    showPlanCard && hasPresetOptions && canSwitchToCustom,
+  );
+  let showPresetSelect = $derived(
+    showPlanCard &&
+      hasPresetOptions &&
+      (configurationMode === "preset" || !canSwitchToCustom),
+  );
+  let showFacts = $derived(
+    showPlanCard || showConfigurationMode || showPresetSelect,
+  );
+  let canUsePresets = $derived(server.manageEnabled && hasPresetOptions);
+  let canApplyCurrentMode = $derived(
+    configurationMode === "preset" ? canUsePresets : server.reconfigurable,
   );
 
   function clamp(value: number, min: number, max: number, step: number) {
@@ -78,7 +108,9 @@
 
   async function applyChange() {
     if (!server.reconfigurable) {
-      return;
+      if (!(configurationMode === "preset" && canUsePresets)) {
+        return;
+      }
     }
 
     saving = true;
@@ -88,9 +120,13 @@
     try {
       await updateServerConfiguration(token, {
         id: server.id,
+        configurationId:
+          configurationMode === "preset" && selectedPreset
+            ? selectedPreset.id
+            : undefined,
         cpuCount,
         memory,
-        diskSize: server.currentDiskSize,
+        diskSize,
       });
       successMessage = "Resize request sent to Beget.";
       await onRefresh?.();
@@ -103,8 +139,18 @@
   }
 
   function resetDraft() {
-    cpuCount = server.currentCpuCount;
-    memory = server.currentMemory;
+    const currentPreset =
+      !server.currentConfigurationCustom && server.currentConfigurationId
+        ? server.presets.find(
+            (preset) => preset.id === server.currentConfigurationId,
+          )
+        : null;
+
+    configurationMode = currentPreset ? "preset" : "custom";
+    selectedPresetId = currentPreset?.id ?? "";
+    cpuCount = currentPreset?.cpuCount ?? server.currentCpuCount;
+    memory = currentPreset?.memory ?? server.currentMemory;
+    diskSize = currentPreset?.diskSize ?? server.currentDiskSize;
     calculation = null;
     calculationError = null;
     successMessage = null;
@@ -167,12 +213,61 @@
   $effect(() => {
     server.currentCpuCount;
     server.currentMemory;
+    server.currentDiskSize;
+    server.currentConfigurationId;
+    server.currentConfigurationCustom;
+    server.presets;
 
-    cpuCount = server.currentCpuCount;
-    memory = server.currentMemory;
+    const currentPreset =
+      !server.currentConfigurationCustom && server.currentConfigurationId
+        ? server.presets.find(
+            (preset) => preset.id === server.currentConfigurationId,
+          )
+        : null;
+
+    configurationMode = currentPreset ? "preset" : "custom";
+    selectedPresetId = currentPreset?.id ?? "";
+    cpuCount = currentPreset?.cpuCount ?? server.currentCpuCount;
+    memory = currentPreset?.memory ?? server.currentMemory;
+    diskSize = currentPreset?.diskSize ?? server.currentDiskSize;
     calculation = null;
     calculationError = null;
     successMessage = null;
+  });
+
+  $effect(() => {
+    if (!showPlanCard) {
+      return;
+    }
+
+    if (!canSwitchToCustom && hasPresetOptions) {
+      configurationMode = "preset";
+    }
+  });
+
+  $effect(() => {
+    if (
+      configurationMode === "preset" &&
+      !selectedPresetId &&
+      server.presets[0]?.id
+    ) {
+      selectedPresetId = server.presets[0].id;
+    }
+
+    if (configurationMode === "custom") {
+      diskSize = server.currentDiskSize;
+      return;
+    }
+
+    if (configurationMode !== "preset" || !selectedPreset) {
+      return;
+    }
+
+    cpuCount = selectedPreset.cpuCount;
+    memory = selectedPreset.memory;
+    diskSize = selectedPreset.diskSize;
+    calculation = null;
+    calculationError = null;
   });
 
   $effect(() => {
@@ -207,7 +302,13 @@
   });
 
   $effect(() => {
-    if (!server.reconfigurable || !server.cpu || !server.memory || !isDirty) {
+    if (
+      !server.reconfigurable ||
+      !server.cpu ||
+      !server.memory ||
+      !isDirty ||
+      configurationMode === "preset"
+    ) {
       calculation = null;
       calculationError = null;
       calculating = false;
@@ -323,12 +424,39 @@
     />
   </div>
 
-  <div class="facts">
-    <div>
-      <span>Plan</span>
-      <strong>{server.configurationName}</strong>
+  {#if showFacts}
+    <div class="facts" class:preset-layout={showPlanCard}>
+      {#if showPlanCard}
+        <div>
+          <span>Current plan</span>
+          <strong>{server.configurationName}</strong>
+        </div>
+      {/if}
+      {#if showConfigurationMode}
+        <label class="facts-select">
+          <span>Configuration mode</span>
+          <select bind:value={configurationMode} disabled={!canUsePresets}>
+            <option value="custom">Custom</option>
+            <option value="preset">Preset</option>
+          </select>
+        </label>
+      {/if}
+      {#if showPresetSelect}
+        <label class="facts-select preset-select">
+          <span>Preset</span>
+          <select bind:value={selectedPresetId} disabled={!canUsePresets}>
+            {#each server.presets as preset (preset.id)}
+              <option value={preset.id}>
+                {preset.name}
+                · {preset.cpuCount} CPU · {formatGigabytes(preset.memory)} GB
+                RAM
+              </option>
+            {/each}
+          </select>
+        </label>
+      {/if}
     </div>
-  </div>
+  {/if}
 
   <div class="resources">
     <label class="control">
@@ -338,7 +466,7 @@
       </div>
       <input
         bind:value={cpuCount}
-        disabled={!server.reconfigurable}
+        disabled={!server.reconfigurable || configurationMode === "preset"}
         max={server.cpu?.max}
         min={server.cpu?.min}
         step={server.cpu?.step ?? 1}
@@ -347,7 +475,7 @@
       <input
         bind:value={cpuCount}
         class="number"
-        disabled={!server.reconfigurable}
+        disabled={!server.reconfigurable || configurationMode === "preset"}
         max={server.cpu?.max}
         min={server.cpu?.min}
         step={server.cpu?.step ?? 1}
@@ -362,7 +490,7 @@
       </div>
       <input
         bind:value={memory}
-        disabled={!server.reconfigurable}
+        disabled={!server.reconfigurable || configurationMode === "preset"}
         max={server.memory?.max}
         min={server.memory?.min}
         step={server.memory?.step ?? 1}
@@ -371,7 +499,7 @@
       <input
         bind:value={memory}
         class="number"
-        disabled={!server.reconfigurable}
+        disabled={!server.reconfigurable || configurationMode === "preset"}
         max={server.memory?.max}
         min={server.memory?.min}
         step={server.memory?.step ?? 1}
@@ -382,12 +510,16 @@
     <div class="control disk-card">
       <div class="control-head">
         <span>DISK</span>
-        <strong>{formatGigabytes(server.currentDiskSize)} GB</strong>
+        <strong>{formatGigabytes(diskSize)} GB</strong>
       </div>
       <div class="disk-copy">
-        <span>Used</span>
+        <span
+          >{configurationMode === "preset" ? "Current volume" : "Used"}</span
+        >
         <strong>
-          {server.diskUsedMb !== null
+          {configurationMode === "preset"
+            ? `${formatGigabytes(diskSize)} GB`
+            : server.diskUsedMb !== null
             ? `${formatGigabytes(server.diskUsedMb)} / ${formatGigabytes(server.currentDiskSize)} GB`
             : 'n/a'}
         </strong>
@@ -418,9 +550,17 @@
     <p class="info">Recalculating cost and limits...</p>
   {/if}
 
-  {#if !server.reconfigurable}
+  {#if !server.reconfigurable && server.configurable}
     <p class="info muted">
-      This server cannot be resized from the configurator right now.
+      {#if configurationMode === "preset" && canUsePresets}
+        Ready to switch to a preset configuration. Custom configurator controls
+        are unavailable for this server right now.
+      {:else if server.configuratorStatus === "request_failed"}
+        Resize options are temporarily unavailable because configurator data
+        could not be loaded.
+      {:else}
+        This server cannot be resized from the configurator right now.
+      {/if}
     </p>
 
     {#if server.resizeBlockers.length}
@@ -472,7 +612,7 @@
     </button>
     <button
       class="primary"
-      disabled={!server.reconfigurable || !isDirty || saving}
+      disabled={!canApplyCurrentMode || !isDirty || saving}
       onclick={applyChange}
       type="button"
     >
@@ -590,8 +730,12 @@
 
   .facts {
     display: grid;
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 0.85rem;
+  }
+
+  .facts.preset-layout {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .facts > div {
@@ -612,6 +756,24 @@
     display: block;
     margin-top: 0.3rem;
     color: #f5f9fb;
+  }
+
+  .facts-select {
+    display: grid;
+    gap: 0.45rem;
+    padding: 0.8rem 0.9rem;
+    border-radius: 1rem;
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  .facts-select select {
+    width: 100%;
+    padding: 0.7rem 0.8rem;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 0.8rem;
+    background: rgba(5, 13, 22, 0.72);
+    color: #f4f7fb;
+    font: inherit;
   }
 
   .resources {
