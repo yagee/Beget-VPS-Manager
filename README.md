@@ -2,6 +2,8 @@
 
 Local-first Svelte 5 web app for authenticating against Beget and managing VPS CPU/RAM changes from a single screen.
 
+![Beget VPS Manager social card](static/social-card.png)
+
 ## Live
 
 https://beget-vps-manager.dokploy.me/

@@ -210,6 +210,32 @@
     content="Local-first dashboard for Beget VPS authentication and single-screen CPU/RAM reconfiguration."
     name="description"
   >
+  <meta content="Beget VPS Manager" property="og:title" />
+  <meta
+    content="Local-first dashboard for Beget VPS authentication and single-screen CPU/RAM reconfiguration."
+    property="og:description"
+  />
+  <meta content="website" property="og:type" />
+  <meta content="https://beget-vps-manager.dokploy.me/" property="og:url" />
+  <meta content="Beget VPS Manager" property="og:site_name" />
+  <meta
+    content="https://beget-vps-manager.dokploy.me/social-card.png"
+    property="og:image"
+  />
+  <meta
+    content="Beget VPS Manager login and VPS control dashboard preview"
+    property="og:image:alt"
+  />
+  <meta content="summary_large_image" name="twitter:card" />
+  <meta content="Beget VPS Manager" name="twitter:title" />
+  <meta
+    content="Local-first dashboard for Beget VPS authentication and single-screen CPU/RAM reconfiguration."
+    name="twitter:description"
+  />
+  <meta
+    content="https://beget-vps-manager.dokploy.me/social-card.png"
+    name="twitter:image"
+  />
 </svelte:head>
 
 <div class="shell">
