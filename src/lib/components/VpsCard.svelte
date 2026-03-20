@@ -18,9 +18,10 @@
     server: DashboardServer;
     token: string;
     onRefresh?: () => Promise<void> | void;
+    viewMode?: "control" | "monitor";
   };
 
-  let { server, token, onRefresh }: Props = $props();
+  let { server, token, onRefresh, viewMode = "control" }: Props = $props();
 
   let cpuCount = $state(0);
   let memory = $state(0);
@@ -83,6 +84,7 @@
   let canApplyCurrentMode = $derived(
     configurationMode === "preset" ? canUsePresets : server.reconfigurable,
   );
+  let isMonitorView = $derived(viewMode === "monitor");
 
   function clamp(value: number, min: number, max: number, step: number) {
     const bounded = Math.min(max, Math.max(min, value));
@@ -156,9 +158,13 @@
     successMessage = null;
   }
 
-  async function loadStats(serverId: string, period: StatsPeriod) {
+  async function loadStats(
+    serverId: string,
+    period: StatsPeriod,
+    forceRefresh = false,
+  ) {
     const cachedStats = statsCache[period];
-    if (cachedStats) {
+    if (cachedStats && !forceRefresh) {
       stats = cachedStats;
       statsError = null;
       return;
@@ -302,6 +308,24 @@
   });
 
   $effect(() => {
+    if (!isMonitorView) {
+      return;
+    }
+
+    const serverId = server.id;
+    const period = statsPeriod;
+    const interval = window.setInterval(() => {
+      untrack(() => {
+        void loadStats(serverId, period, true);
+      });
+    }, 60_000);
+
+    return () => {
+      window.clearInterval(interval);
+    };
+  });
+
+  $effect(() => {
     if (
       !server.reconfigurable ||
       !server.cpu ||
@@ -371,13 +395,15 @@
   });
 </script>
 
-<article class="card">
+<article class="card" class:monitor={isMonitorView}>
   <header class="card-head">
     <div class="title-block">
       <p class="name">{server.displayName}</p>
       <p class="meta">
-        {server.hostname || server.technicalDomain || server.id}
-        <span>{server.region || 'n/a'}</span>
+        {#if !isMonitorView}
+          {server.hostname || server.technicalDomain || server.id}
+          <span>{server.region || 'n/a'}</span>
+        {/if}
         <span>{server.ipAddress || 'n/a'}</span>
       </p>
     </div>
@@ -404,6 +430,7 @@
     </div>
 
     <MetricSparkline
+      compact={isMonitorView}
       error={statsError}
       idSuffix={`${server.id}-cpu`}
       loading={statsLoading}
@@ -414,6 +441,7 @@
     />
     <MetricSparkline
       ceiling={server.currentMemory / 1024}
+      compact={isMonitorView}
       error={statsError}
       idSuffix={`${server.id}-memory`}
       loading={statsLoading}
@@ -424,7 +452,7 @@
     />
   </div>
 
-  {#if showFacts}
+  {#if !isMonitorView && showFacts}
     <div class="facts" class:preset-layout={showPlanCard}>
       {#if showPlanCard}
         <div>
@@ -458,99 +486,101 @@
     </div>
   {/if}
 
-  <div class="resources">
-    <label class="control">
-      <div class="control-head">
-        <span>CPU</span>
-        <strong>{cpuCount}</strong>
-      </div>
-      <input
-        bind:value={cpuCount}
-        disabled={!server.reconfigurable || configurationMode === "preset"}
-        max={server.cpu?.max}
-        min={server.cpu?.min}
-        step={server.cpu?.step ?? 1}
-        type="range"
-      >
-      <input
-        bind:value={cpuCount}
-        class="number"
-        disabled={!server.reconfigurable || configurationMode === "preset"}
-        max={server.cpu?.max}
-        min={server.cpu?.min}
-        step={server.cpu?.step ?? 1}
-        type="number"
-      >
-    </label>
-
-    <label class="control">
-      <div class="control-head">
-        <span>RAM</span>
-        <strong>{formatGigabytes(memory)} GB</strong>
-      </div>
-      <input
-        bind:value={memory}
-        disabled={!server.reconfigurable || configurationMode === "preset"}
-        max={server.memory?.max}
-        min={server.memory?.min}
-        step={server.memory?.step ?? 1}
-        type="range"
-      >
-      <input
-        bind:value={memory}
-        class="number"
-        disabled={!server.reconfigurable || configurationMode === "preset"}
-        max={server.memory?.max}
-        min={server.memory?.min}
-        step={server.memory?.step ?? 1}
-        type="number"
-      >
-    </label>
-
-    <div class="control disk-card">
-      <div class="control-head">
-        <span>DISK</span>
-        <strong>{formatGigabytes(diskSize)} GB</strong>
-      </div>
-      <div class="disk-copy">
-        <span
-          >{configurationMode === "preset" ? "Current volume" : "Used"}</span
+  {#if !isMonitorView}
+    <div class="resources">
+      <label class="control">
+        <div class="control-head">
+          <span>CPU</span>
+          <strong>{cpuCount}</strong>
+        </div>
+        <input
+          bind:value={cpuCount}
+          disabled={!server.reconfigurable || configurationMode === "preset"}
+          max={server.cpu?.max}
+          min={server.cpu?.min}
+          step={server.cpu?.step ?? 1}
+          type="range"
         >
-        <strong>
-          {configurationMode === "preset"
+        <input
+          bind:value={cpuCount}
+          class="number"
+          disabled={!server.reconfigurable || configurationMode === "preset"}
+          max={server.cpu?.max}
+          min={server.cpu?.min}
+          step={server.cpu?.step ?? 1}
+          type="number"
+        >
+      </label>
+
+      <label class="control">
+        <div class="control-head">
+          <span>RAM</span>
+          <strong>{formatGigabytes(memory)} GB</strong>
+        </div>
+        <input
+          bind:value={memory}
+          disabled={!server.reconfigurable || configurationMode === "preset"}
+          max={server.memory?.max}
+          min={server.memory?.min}
+          step={server.memory?.step ?? 1}
+          type="range"
+        >
+        <input
+          bind:value={memory}
+          class="number"
+          disabled={!server.reconfigurable || configurationMode === "preset"}
+          max={server.memory?.max}
+          min={server.memory?.min}
+          step={server.memory?.step ?? 1}
+          type="number"
+        >
+      </label>
+
+      <div class="control disk-card">
+        <div class="control-head">
+          <span>DISK</span>
+          <strong>{formatGigabytes(diskSize)} GB</strong>
+        </div>
+        <div class="disk-copy">
+          <span
+            >{configurationMode === "preset" ? "Current volume" : "Used"}</span
+          >
+          <strong>
+            {configurationMode === "preset"
             ? `${formatGigabytes(diskSize)} GB`
             : server.diskUsedMb !== null
             ? `${formatGigabytes(server.diskUsedMb)} / ${formatGigabytes(server.currentDiskSize)} GB`
             : 'n/a'}
-        </strong>
+          </strong>
+        </div>
+      </div>
+
+      <div class="control price-card">
+        <div class="price-row">
+          <span>Current</span>
+          <strong>{formatPrice(server.currentPriceMonth)} / month</strong>
+        </div>
+        <div class="price-row">
+          <span>Projected</span>
+          <strong>{formatPrice(projectedPriceMonth)} / month</strong>
+        </div>
+        <div
+          class="price-row"
+          class:gain={priceDeltaMonth < 0}
+          class:loss={priceDeltaMonth > 0}
+        >
+          <span>Delta</span>
+          <strong>{formatDelta(priceDeltaMonth)}</strong>
+        </div>
       </div>
     </div>
+  {/if}
 
-    <div class="control price-card">
-      <div class="price-row">
-        <span>Current</span>
-        <strong>{formatPrice(server.currentPriceMonth)} / month</strong>
-      </div>
-      <div class="price-row">
-        <span>Projected</span>
-        <strong>{formatPrice(projectedPriceMonth)} / month</strong>
-      </div>
-      <div
-        class="price-row"
-        class:gain={priceDeltaMonth < 0}
-        class:loss={priceDeltaMonth > 0}
-      >
-        <span>Delta</span>
-        <strong>{formatDelta(priceDeltaMonth)}</strong>
-      </div>
-    </div>
-  </div>
-
-  {#if calculating}
+  {#if !isMonitorView && calculating}
     <p class="info recalculating">Recalculating cost and limits...</p>
   {/if}
 
-  {#if !server.reconfigurable && server.configurable}
+  {#if !isMonitorView && !server.reconfigurable && server.configurable}
     <p class="info muted">
       {#if configurationMode === "preset" && canUsePresets}
         Ready to switch to a preset configuration. Custom configurator controls
@@ -572,15 +602,15 @@
     {/if}
   {/if}
 
-  {#if calculationError}
+  {#if !isMonitorView && calculationError}
     <p class="info error">{calculationError}</p>
   {/if}
 
-  {#if savingError}
+  {#if !isMonitorView && savingError}
     <p class="info error">{savingError}</p>
   {/if}
 
-  {#if successMessage}
+  {#if !isMonitorView && successMessage}
     <p class="info success">{successMessage}</p>
   {/if}
 
@@ -601,24 +631,26 @@
     </div>
   {/if}
 
-  <footer class="actions">
-    <button
-      class="ghost"
-      disabled={!isDirty || saving}
-      onclick={resetDraft}
-      type="button"
-    >
-      Reset
-    </button>
-    <button
-      class="primary"
-      disabled={!canApplyCurrentMode || !isDirty || saving}
-      onclick={applyChange}
-      type="button"
-    >
-      {saving ? 'Applying...' : 'Apply changes'}
-    </button>
-  </footer>
+  {#if !isMonitorView}
+    <footer class="actions">
+      <button
+        class="ghost"
+        disabled={!isDirty || saving}
+        onclick={resetDraft}
+        type="button"
+      >
+        Reset
+      </button>
+      <button
+        class="primary"
+        disabled={!canApplyCurrentMode || !isDirty || saving}
+        onclick={applyChange}
+        type="button"
+      >
+        {saving ? 'Applying...' : 'Apply changes'}
+      </button>
+    </footer>
+  {/if}
 </article>
 
 <style>
@@ -637,6 +669,11 @@
         transparent 34%
       );
     box-shadow: 0 24px 65px rgba(3, 7, 16, 0.3);
+  }
+
+  .card.monitor {
+    gap: 0.85rem;
+    padding: 1rem;
   }
 
   .card-head,
@@ -834,6 +871,10 @@
     gap: 0.85rem;
   }
 
+  .card.monitor .metrics {
+    gap: 0.7rem;
+  }
+
   .metrics-toolbar {
     grid-column: 1 / -1;
     display: flex;
@@ -852,6 +893,10 @@
     letter-spacing: 0.12em;
     text-transform: uppercase;
     color: rgba(188, 205, 218, 0.62);
+  }
+
+  .card.monitor .metrics-label {
+    font-size: 0.72rem;
   }
 
   .periods {
@@ -895,6 +940,16 @@
     );
     color: #f9fbfd;
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  }
+
+  .card.monitor .periods {
+    gap: 0.25rem;
+    padding: 0.22rem;
+  }
+
+  .card.monitor .period-button {
+    padding: 0.42rem 0.58rem;
+    font-size: 0.68rem;
   }
 
   .control {

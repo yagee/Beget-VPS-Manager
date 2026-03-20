@@ -30,6 +30,7 @@
   let query = $state("");
   let page = $state(1);
   let pageSize = $state(5);
+  let viewMode = $state<"control" | "monitor">("control");
 
   const storageKey = "beget-vps-manager:prefs";
   const codeChallengeErrors = [
@@ -98,12 +99,14 @@
             const parsed = JSON.parse(raw) as {
               query?: string;
               pageSize?: number;
+              viewMode?: "control" | "monitor";
             };
 
             query = parsed.query ?? "";
             pageSize = [5, 10, 25].includes(parsed.pageSize ?? 0)
               ? (parsed.pageSize as 5 | 10 | 25)
               : 5;
+            viewMode = parsed.viewMode === "monitor" ? "monitor" : "control";
           } catch (error) {
             console.warn("Failed to restore local UI preferences", error);
           }
@@ -131,9 +134,19 @@
       JSON.stringify({
         query,
         pageSize,
+        viewMode,
       }),
     );
   });
+
+  function setViewMode(nextMode: "control" | "monitor") {
+    viewMode = nextMode;
+    setPage(1);
+
+    if (begetToken) {
+      void loadDashboard(begetToken, nextMode);
+    }
+  }
 
   function buildPageItems(currentPage: number, totalPages: number) {
     if (totalPages <= 7) {
@@ -193,7 +206,10 @@
     }
   }
 
-  async function loadDashboard(token = begetToken) {
+  async function loadDashboard(
+    token = begetToken,
+    nextViewMode: "control" | "monitor" = viewMode,
+  ) {
     if (!token) {
       clearAuthentication();
       return;
@@ -203,7 +219,9 @@
     dashboardError = null;
 
     try {
-      dashboard = await fetchDashboard(token);
+      dashboard = await fetchDashboard(token, {
+        monitorOnly: nextViewMode === "monitor",
+      });
     } catch (error) {
       if (error instanceof BegetClientError && error.status === 401) {
         clearAuthentication("Session expired. Sign in again.");
@@ -349,6 +367,29 @@
         </div>
 
         <div class="masthead-actions">
+          <div aria-label="Card view mode" class="view-mode-buttons">
+            <button
+              class="view-button"
+              class:active={viewMode === "control"}
+              onclick={() => {
+                setViewMode("control");
+              }}
+              type="button"
+            >
+              Manage
+            </button>
+            <button
+              class="view-button"
+              class:active={viewMode === "monitor"}
+              onclick={() => {
+                setViewMode("monitor");
+              }}
+              type="button"
+            >
+              Monitor
+            </button>
+          </div>
+
           <button
             class="outline"
             disabled={loading}
@@ -425,12 +466,13 @@
       {#if loading && !dashboard}
         <div class="loading-state">Loading the VPS deck...</div>
       {:else if dashboard}
-        <div class="grid">
+        <div class="grid" class:monitor-grid={viewMode === "monitor"}>
           {#each visibleServers as server (`${server.id}:${server.currentCpuCount}:${server.currentMemory}:${server.status}`)}
             <VpsCard
               onRefresh={loadDashboard}
               {server}
               token={begetToken ?? ""}
+              {viewMode}
             />
           {:else}
             <div class="empty-state">
@@ -735,6 +777,30 @@
     font: inherit;
   }
 
+  .view-mode-buttons {
+    display: inline-flex;
+    gap: 0.25rem;
+    padding: 0.24rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  .view-button {
+    padding: 0.62rem 0.9rem;
+    background: transparent;
+    color: rgba(219, 231, 239, 0.8);
+  }
+
+  .view-button.active {
+    background: linear-gradient(
+      135deg,
+      rgba(248, 184, 75, 0.22),
+      rgba(125, 231, 243, 0.18)
+    );
+    color: #f9fbfd;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  }
+
   .filter-note {
     padding: 0.65rem 0.9rem;
     border-radius: 1rem;
@@ -756,6 +822,10 @@
     display: grid;
     grid-template-columns: 1fr;
     gap: 1rem;
+  }
+
+  .grid.monitor-grid {
+    grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
   }
 
   .pagination {

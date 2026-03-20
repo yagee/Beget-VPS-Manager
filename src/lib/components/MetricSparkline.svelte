@@ -11,6 +11,7 @@
     ceiling?: number | null;
     loading?: boolean;
     error?: string | null;
+    compact?: boolean;
   };
 
   let {
@@ -22,6 +23,7 @@
     ceiling = null,
     loading = false,
     error = null,
+    compact = false,
   }: Props = $props();
 
   const width = 260;
@@ -123,7 +125,7 @@
   }
 </script>
 
-<section class="metric {tone}">
+<section class="metric {tone}" class:compact>
   <div class="head">
     <p>{title}</p>
     {#if unit === 'gigabytes' && ceiling !== null}
@@ -181,6 +183,11 @@
     background: rgba(255, 255, 255, 0.04);
   }
 
+  .metric.compact {
+    gap: 0.65rem;
+    padding: 0.8rem;
+  }
+
   .head,
   .summary {
     display: flex;
@@ -205,6 +212,18 @@
       "SFMono-Regular",
       Consolas,
       monospace;
+  }
+
+  .metric.compact .head p {
+    font-size: 0.8rem;
+  }
+
+  .metric.compact .head strong {
+    font-size: 0.82rem;
+  }
+
+  .metric.memory.compact .head strong {
+    text-align: end;
   }
 
   .chart {
@@ -247,6 +266,10 @@
 
   .summary strong {
     color: #f5f9fb;
+  }
+
+  .metric.compact .summary span {
+    font-size: 0.68rem;
   }
 
   .placeholder {

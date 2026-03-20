@@ -317,13 +317,24 @@ export async function logout(token: string): Promise<void> {
   });
 }
 
-export async function fetchDashboard(token: string) {
+export async function fetchDashboard(
+  token: string,
+  options: { monitorOnly?: boolean } = {},
+) {
+  const { monitorOnly = false } = options;
   const [listResponse, configurationResponse] = await Promise.all([
     getServerList(token),
-    getAvailableConfigurations(token).catch(() => ({ configurations: [] })),
+    monitorOnly
+      ? Promise.resolve({ configurations: [] })
+      : getAvailableConfigurations(token).catch(() => ({ configurations: [] })),
   ]);
   const servers = listResponse.vps ?? [];
   const configurations = configurationResponse.configurations ?? [];
+
+  if (monitorOnly) {
+    return buildDashboardPayload(servers, new Map(), new Map(), configurations);
+  }
+
   const uniqueKeys = new Map<
     string,
     { region: string; configurationGroup: string }
