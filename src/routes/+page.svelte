@@ -398,7 +398,7 @@
             }}
             type="button"
           >
-            {loading ? 'Refreshing...' : 'Refresh'}
+            Refresh
           </button>
           <button class="outline" onclick={handleLogout} type="button">
             Logout
