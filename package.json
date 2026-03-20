@@ -25,8 +25,7 @@
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
     "biome:check": "biome check",
-    "biome:write": "biome check --write",
-    "biome:staged": "biome check --write --staged"
+    "biome:write": "biome check --write"
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.8",

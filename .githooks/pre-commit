@@ -1,8 +1,19 @@
 #!/usr/bin/env sh
 set -eu
 
+staged_files=$(
+  git diff --cached --name-only --diff-filter=ACMR |
+    grep -E '\.(js|cjs|mjs|jsx|ts|cts|mts|tsx|json|jsonc|css|graphql|gql|html|svelte|astro|vue)$' ||
+    true
+)
+
+if [ -z "$staged_files" ]; then
+  echo "No staged files for Biome."
+  exit 0
+fi
+
 echo "Running Biome on staged files..."
-bun run biome:staged
+echo "$staged_files" | xargs bunx biome check --write
 
 # Re-stage already tracked changes after autofixes.
 git update-index --again
