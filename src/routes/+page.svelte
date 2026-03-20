@@ -236,6 +236,16 @@ async function handleLogout() {
 					This app keeps the Beget session in this browser and talks to the Beget API directly
 					for CPU and RAM reconfiguration.
 				</p>
+				<p class="source-note">
+					Check the source code in the
+					<a
+						href="https://github.com/yagee/Beget-VPS-Manager"
+						rel="noreferrer"
+						target="_blank"
+					>
+						GitHub repository
+					</a>.
+				</p>
 			</div>
 
 			<LoginForm
@@ -422,6 +432,21 @@ async function handleLogout() {
 		max-width: 55ch;
 		line-height: 1.6;
 		color: rgba(221, 232, 240, 0.78);
+	}
+
+	.source-note {
+		margin-top: 1rem;
+		font-size: 0.95rem;
+	}
+
+	.source-note a {
+		color: #7de7f3;
+		text-underline-offset: 0.2em;
+		text-decoration-thickness: 0.08em;
+	}
+
+	.source-note a:hover {
+		color: #ffd37a;
 	}
 
 	.dashboard {
