@@ -801,10 +801,6 @@
     margin-top: 0.2rem;
   }
 
-  .actions .ghost {
-    margin-right: auto;
-  }
-
   .blockers {
     display: grid;
     gap: 0.5rem;
@@ -841,6 +837,10 @@
   .ghost {
     background: rgba(255, 255, 255, 0.08);
     color: #d9e6ef;
+  }
+
+  .actions .ghost {
+    margin-right: auto;
   }
 
   .primary {
