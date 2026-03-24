@@ -20,6 +20,8 @@
     onRefresh?: () => Promise<void> | void;
     viewMode?: "control" | "monitor";
     showAccountLabel?: boolean;
+    favorite?: boolean;
+    onToggleFavorite?: () => void;
   };
 
   let {
@@ -28,6 +30,8 @@
     onRefresh,
     viewMode = "control",
     showAccountLabel = false,
+    favorite = false,
+    onToggleFavorite,
   }: Props = $props();
 
   let cpuCount = $state(0);
@@ -424,7 +428,21 @@
         <span>{server.ipAddress || 'n/a'}</span>
       </p>
     </div>
-    <div class="status {statusTone()}">{server.status}</div>
+    <div class="card-head-actions">
+      <button
+        aria-label={favorite ? "Remove from favorites" : "Add to favorites"}
+        aria-pressed={favorite}
+        class="favorite-toggle"
+        class:active={favorite}
+        onclick={() => {
+          onToggleFavorite?.();
+        }}
+        type="button"
+      >
+        <span aria-hidden="true">★</span>
+      </button>
+      <div class="status {statusTone()}">{server.status}</div>
+    </div>
   </header>
 
   <div class="metrics">
@@ -696,14 +714,16 @@
   .card-head,
   .control-head,
   .actions,
-  .flags {
+  .flags,
+  .card-head-actions {
     display: flex;
     gap: 0.75rem;
   }
 
   .card-head,
   .control-head,
-  .actions {
+  .actions,
+  .card-head-actions {
     justify-content: space-between;
     align-items: center;
   }
@@ -759,6 +779,34 @@
     content: "•";
     margin-right: 0.45rem;
     color: rgba(125, 231, 243, 0.48);
+  }
+
+  .favorite-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    padding: 0;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.05);
+    color: rgba(217, 231, 239, 0.66);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  }
+
+  .favorite-toggle:hover {
+    color: #fff1bb;
+    transform: translateY(-1px);
+  }
+
+  .favorite-toggle.active {
+    background: linear-gradient(135deg, #ffd37a 0%, #f8b84b 100%);
+    color: #241707;
+  }
+
+  .favorite-toggle span {
+    font-size: 1rem;
+    line-height: 1;
   }
 
   .status {

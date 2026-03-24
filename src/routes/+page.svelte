@@ -53,6 +53,7 @@
   let loginPending = $state(false);
   let loginCodeRequired = $state(false);
   let addingAccount = $state(false);
+  let favoriteKeys = $state<string[]>([]);
   let query = $state("");
   let page = $state(1);
   let pageSize = $state(5);
@@ -124,6 +125,7 @@
   let filteredServers = $derived.by(() => {
     const servers = currentDashboard?.servers ?? [];
     const normalizedQuery = query.trim().toLowerCase();
+    const favorites = new Set(favoriteKeys);
 
     return servers
       .filter((server) => {
@@ -145,6 +147,13 @@
           .includes(normalizedQuery);
       })
       .sort((left, right) => {
+        const favoriteDelta =
+          Number(favorites.has(buildFavoriteKey(right))) -
+          Number(favorites.has(buildFavoriteKey(left)));
+        if (favoriteDelta !== 0) {
+          return favoriteDelta;
+        }
+
         const reconfigurableDelta =
           Number(right.reconfigurable) - Number(left.reconfigurable);
         if (reconfigurableDelta !== 0) {
@@ -269,6 +278,25 @@
     };
   }
 
+  function buildFavoriteKey(server: { accountId?: string; id: string }) {
+    return `${server.accountId ?? "default"}:${server.id}`;
+  }
+
+  function isFavorite(server: { accountId?: string; id: string }) {
+    return favoriteKeys.includes(buildFavoriteKey(server));
+  }
+
+  function toggleFavorite(server: { accountId?: string; id: string }) {
+    const key = buildFavoriteKey(server);
+
+    if (favoriteKeys.includes(key)) {
+      favoriteKeys = favoriteKeys.filter((entry) => entry !== key);
+      return;
+    }
+
+    favoriteKeys = [...favoriteKeys, key];
+  }
+
   function tokenForAccount(accountId?: string) {
     return accounts.find((account) => account.id === accountId)?.token ?? "";
   }
@@ -307,6 +335,7 @@
               query?: string;
               pageSize?: number;
               viewMode?: "control" | "monitor";
+              favoriteKeys?: string[];
             };
 
             query = parsed.query ?? "";
@@ -314,6 +343,11 @@
               ? (parsed.pageSize as 5 | 10 | 25)
               : 5;
             viewMode = parsed.viewMode === "monitor" ? "monitor" : "control";
+            favoriteKeys = Array.isArray(parsed.favoriteKeys)
+              ? parsed.favoriteKeys.filter(
+                  (key): key is string => typeof key === "string",
+                )
+              : [];
           } catch (error) {
             console.warn("Failed to restore local UI preferences", error);
           }
@@ -350,6 +384,7 @@
         query,
         pageSize,
         viewMode,
+        favoriteKeys,
       }),
     );
   });
@@ -830,10 +865,14 @@
         <div class="grid" class:monitor-grid={viewMode === "monitor"}>
           {#each visibleServers as server (`${server.accountId ?? 'default'}:${server.id}:${server.currentCpuCount}:${server.currentMemory}:${server.status}`)}
             <VpsCard
+              favorite={isFavorite(server)}
               onRefresh={() => {
                 if (server.accountId) {
                   return loadDashboards([server.accountId]);
                 }
+              }}
+              onToggleFavorite={() => {
+                toggleFavorite(server);
               }}
               {server}
               showAccountLabel={selectedScope === allActiveScopeId}
