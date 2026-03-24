@@ -27,12 +27,16 @@ Local OpenAPI snapshots for development can be kept in `openapi/`, but they are 
 
 ## Commands
 
-```bash
-bun run dev
-bun run check
-bun run build
-bun run preview
-```
+| Script | Purpose |
+| --- | --- |
+| `bun run dev` | Start the local Vite dev server. |
+| `bun run check` | Run `svelte-check` against the project TypeScript config. |
+| `bun run check:watch` | Run `svelte-check` in watch mode. |
+| `bun run format` | Apply Biome formatting and safe fixes. |
+| `bun run build` | Build the static site into `build/`. |
+| `bun run preview` | Preview the built site locally on `${PORT:-4173}`. |
+| `bun run prebuild` | Lifecycle hook that runs `bun run format` before `build`. |
+| `bun run prepare` | Lifecycle hook that syncs SvelteKit and sets the local Git hooks path. |
 
 `bun run build` writes the static site to `build/`.
 
