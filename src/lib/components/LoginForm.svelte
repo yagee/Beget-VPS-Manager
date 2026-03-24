@@ -5,6 +5,11 @@
     pending?: boolean;
     error?: string | null;
     codeRequired?: boolean;
+    eyebrow?: string;
+    title?: string;
+    description?: string;
+    submitLabel?: string;
+    pendingLabel?: string;
     onLogin?: (payload: AuthLoginPayload) => Promise<void> | void;
   };
 
@@ -12,6 +17,11 @@
     pending = false,
     error = null,
     codeRequired = false,
+    eyebrow = "Local Control Room",
+    title = "Beget VPS Manager",
+    description = "Authenticate once, then review and reconfigure CPU and RAM for every VPS from a single screen.",
+    submitLabel = "Enter dashboard",
+    pendingLabel = "Signing in...",
     onLogin,
   }: Props = $props();
 
@@ -47,12 +57,9 @@
 
 <form class="login-card" onsubmit={handleSubmit}>
   <div class="copy">
-    <p class="eyebrow">Local Control Room</p>
-    <h1>Beget VPS Manager</h1>
-    <p class="lede">
-      Authenticate once, then review and reconfigure CPU and RAM for every VPS
-      from a single screen.
-    </p>
+    <p class="eyebrow">{eyebrow}</p>
+    <h1>{title}</h1>
+    <p class="lede">{description}</p>
   </div>
 
   <label class="field">
@@ -104,7 +111,7 @@
   {/if}
 
   <button class="submit" disabled={pending} type="submit">
-    {pending ? 'Signing in...' : 'Enter dashboard'}
+    {pending ? pendingLabel : submitLabel}
   </button>
 </form>
 
@@ -219,93 +226,72 @@
     background: rgba(4, 10, 18, 0.88);
     transition:
       border-color 160ms ease,
-      background-color 160ms ease,
-      box-shadow 160ms ease,
-      transform 160ms ease;
-  }
-
-  .check-mark::after {
-    content: "";
-    position: absolute;
-    left: 0.38rem;
-    top: 0.16rem;
-    width: 0.28rem;
-    height: 0.56rem;
-    border-right: 2px solid #08131f;
-    border-bottom: 2px solid #08131f;
-    transform: rotate(45deg) scale(0.6);
-    opacity: 0;
-    transition:
-      opacity 140ms ease,
-      transform 140ms ease;
+      background 160ms ease,
+      box-shadow 160ms ease;
   }
 
   .check-copy {
     display: grid;
-    gap: 0.16rem;
+    gap: 0.15rem;
   }
 
   .check-copy strong {
-    font-size: 0.92rem;
     font-weight: 600;
-    letter-spacing: 0.01em;
   }
 
   .check-copy small {
-    font-size: 0.8rem;
-    line-height: 1.45;
-    color: rgba(188, 205, 218, 0.72);
+    color: rgba(191, 208, 220, 0.7);
   }
 
-  .check:hover {
-    border-color: rgba(125, 231, 243, 0.18);
-    background: rgba(10, 20, 32, 0.8);
+  .check input:checked + .check-mark {
+    border-color: rgba(125, 231, 243, 0.7);
+    background: linear-gradient(135deg, #7de7f3 0%, #f8b84b 100%);
+    box-shadow: 0 0 0 3px rgba(125, 231, 243, 0.18);
   }
 
-  .check:has(input:focus-visible) {
-    outline: 2px solid rgba(125, 231, 243, 0.55);
-    outline-offset: 2px;
-  }
-
-  .check:has(input:checked) .check-mark {
-    border-color: rgba(248, 184, 75, 0.95);
-    background: linear-gradient(135deg, #f8b84b, #ffd770);
-    box-shadow: 0 0 0 4px rgba(248, 184, 75, 0.12);
-  }
-
-  .check:has(input:checked) .check-mark::after {
-    opacity: 1;
-    transform: rotate(45deg) scale(1);
-  }
-
-  .check:has(input:checked) .check-copy strong {
-    color: #f6fbff;
+  .check input:checked + .check-mark::after {
+    content: "";
+    position: absolute;
+    inset: 0.2rem 0.35rem 0.28rem;
+    border-right: 2px solid #06101c;
+    border-bottom: 2px solid #06101c;
+    transform: rotate(45deg);
   }
 
   .error {
     margin: 0;
-    padding: 0.8rem 0.9rem;
-    border-radius: 0.95rem;
-    background: rgba(255, 109, 91, 0.12);
-    color: #ffc1b8;
+    padding: 0.85rem 0.95rem;
+    border-radius: 1rem;
+    background: rgba(124, 20, 12, 0.28);
+    color: #ffcabf;
   }
 
   .submit {
-    padding: 0.95rem 1.15rem;
+    padding: 0.95rem 1.2rem;
     border: 0;
     border-radius: 999px;
-    background: linear-gradient(120deg, #f8b84b, #ffd770);
-    color: #111722;
+    background: linear-gradient(135deg, #ffd37a 0%, #f3a63f 100%);
+    color: #181006;
     font:
-      700 0.98rem / 1 "Space Grotesk",
-      "Avenir Next",
-      "Segoe UI",
-      sans-serif;
+      700 0.85rem / 1 "IBM Plex Mono",
+      "SFMono-Regular",
+      Consolas,
+      monospace;
     cursor: pointer;
+    transition:
+      transform 160ms ease,
+      box-shadow 160ms ease,
+      filter 160ms ease;
+    box-shadow: 0 14px 30px rgba(246, 185, 79, 0.28);
+  }
+
+  .submit:hover:enabled {
+    transform: translateY(-1px);
+    filter: brightness(1.03);
   }
 
   .submit:disabled {
     cursor: progress;
-    opacity: 0.7;
+    opacity: 0.75;
   }
 </style>

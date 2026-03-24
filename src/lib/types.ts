@@ -9,6 +9,15 @@ export interface SessionPayload {
   authenticated: boolean;
 }
 
+export interface StoredAccount {
+  id: string;
+  login: string;
+  token: string;
+  persistent: boolean;
+  addedAt: string;
+  lastUsedAt: string;
+}
+
 export interface DashboardRange {
   min: number;
   max: number;
@@ -30,6 +39,8 @@ export interface DashboardPreset {
 export interface DashboardServer {
   id: string;
   slug: string;
+  accountId?: string;
+  accountLabel?: string;
   displayName: string;
   hostname: string;
   description: string;

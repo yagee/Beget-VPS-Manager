@@ -19,9 +19,16 @@
     token: string;
     onRefresh?: () => Promise<void> | void;
     viewMode?: "control" | "monitor";
+    showAccountLabel?: boolean;
   };
 
-  let { server, token, onRefresh, viewMode = "control" }: Props = $props();
+  let {
+    server,
+    token,
+    onRefresh,
+    viewMode = "control",
+    showAccountLabel = false,
+  }: Props = $props();
 
   let cpuCount = $state(0);
   let memory = $state(0);
@@ -85,6 +92,7 @@
     configurationMode === "preset" ? canUsePresets : server.reconfigurable,
   );
   let isMonitorView = $derived(viewMode === "monitor");
+  let serverKey = $derived(`${server.accountId ?? "default"}:${server.id}`);
 
   function clamp(value: number, min: number, max: number, step: number) {
     const bounded = Math.min(max, Math.max(min, value));
@@ -277,6 +285,8 @@
   });
 
   $effect(() => {
+    serverKey;
+    token;
     const serverId = server.id;
 
     untrack(() => {
@@ -296,6 +306,8 @@
   });
 
   $effect(() => {
+    serverKey;
+    token;
     const serverId = server.id;
     const period = statsPeriod;
 
@@ -312,6 +324,8 @@
       return;
     }
 
+    serverKey;
+    token;
     const serverId = server.id;
     const period = statsPeriod;
     const interval = window.setInterval(() => {
@@ -398,6 +412,9 @@
 <article class="card" class:monitor={isMonitorView}>
   <header class="card-head">
     <div class="title-block">
+      {#if showAccountLabel && server.accountLabel}
+        <p class="account-pill">{server.accountLabel}</p>
+      {/if}
       <p class="name">{server.displayName}</p>
       <p class="meta">
         {#if !isMonitorView}
@@ -432,7 +449,7 @@
     <MetricSparkline
       compact={isMonitorView}
       error={statsError}
-      idSuffix={`${server.id}-cpu`}
+      idSuffix={`${serverKey}-cpu`}
       loading={statsLoading}
       stats={stats?.cpu ?? null}
       title="CPU load"
@@ -443,7 +460,7 @@
       ceiling={server.currentMemory / 1024}
       compact={isMonitorView}
       error={statsError}
-      idSuffix={`${server.id}-memory`}
+      idSuffix={`${serverKey}-memory`}
       loading={statsLoading}
       stats={stats?.memory ?? null}
       title="RAM load"
@@ -694,6 +711,22 @@
   .title-block {
     display: grid;
     gap: 0.25rem;
+  }
+
+  .account-pill {
+    margin: 0;
+    width: fit-content;
+    padding: 0.22rem 0.55rem;
+    border-radius: 999px;
+    background: rgba(125, 231, 243, 0.12);
+    color: #9aeef8;
+    font:
+      700 0.68rem / 1 "IBM Plex Mono",
+      "SFMono-Regular",
+      Consolas,
+      monospace;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
   }
 
   .name,

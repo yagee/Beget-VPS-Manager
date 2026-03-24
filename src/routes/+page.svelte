@@ -9,30 +9,23 @@
     logout,
   } from "$lib/beget/browser";
   import {
-    clearStoredToken,
-    readStoredToken,
-    writeStoredToken,
+    readActiveAccountId,
+    readStoredAccounts,
+    removeStoredAccount,
+    upsertStoredAccount,
+    writeActiveAccountId,
   } from "$lib/beget/session";
   import LoginForm from "$lib/components/LoginForm.svelte";
   import VpsCard from "$lib/components/VpsCard.svelte";
-  import type { AuthLoginPayload, DashboardPayload } from "$lib/types";
+  import type {
+    AuthLoginPayload,
+    DashboardPayload,
+    StoredAccount,
+  } from "$lib/types";
   import { formatTimestamp } from "$lib/utils/format";
 
-  let authReady = $state(false);
-  let authenticated = $state(false);
-  let begetToken = $state<string | null>(null);
-  let dashboard = $state<DashboardPayload | null>(null);
-  let loading = $state(false);
-  let dashboardError = $state<string | null>(null);
-  let loginError = $state<string | null>(null);
-  let loginPending = $state(false);
-  let loginCodeRequired = $state(false);
-  let query = $state("");
-  let page = $state(1);
-  let pageSize = $state(5);
-  let viewMode = $state<"control" | "monitor">("control");
-
   const storageKey = "beget-vps-manager:prefs";
+  const allActiveScopeId = "__all-active__";
   const codeChallengeErrors = [
     "CODE_REQUIRED",
     "CODE_REQUIRED_EMAIL",
@@ -43,8 +36,93 @@
     "CODE_SENT_LIMIT",
   ];
 
+  type BannerState = {
+    tone: "error" | "neutral";
+    text: string;
+  };
+
+  let authReady = $state(false);
+  let accounts = $state<StoredAccount[]>([]);
+  let dashboardsByAccount = $state<Record<string, DashboardPayload>>({});
+  let accountErrors = $state<Record<string, string>>({});
+  let activeAccountId = $state<string | null>(null);
+  let selectedScope = $state<string | null>(null);
+  let loading = $state(false);
+  let statusMessage = $state<BannerState | null>(null);
+  let loginError = $state<string | null>(null);
+  let loginPending = $state(false);
+  let loginCodeRequired = $state(false);
+  let addingAccount = $state(false);
+  let query = $state("");
+  let page = $state(1);
+  let pageSize = $state(5);
+  let viewMode = $state<"control" | "monitor">("control");
+
+  let authenticated = $derived(accounts.length > 0);
+  let activeAccount = $derived(
+    accounts.find((account) => account.id === activeAccountId) ?? null,
+  );
+  let showAllActiveScope = $derived(accounts.length > 1);
+  let currentScopeAccountId = $derived(
+    selectedScope === allActiveScopeId ? activeAccountId : selectedScope,
+  );
+  let scopeTitle = $derived(
+    selectedScope === allActiveScopeId
+      ? "All running servers"
+      : (activeAccount?.login ?? "VPS configuration deck"),
+  );
+  let scopeDescription = $derived(
+    selectedScope === allActiveScopeId
+      ? `Running VPS cards from ${accounts.length} stored Beget accounts.`
+      : activeAccount
+        ? `Manage ${activeAccount.login} from this browser, or switch to another saved account instantly.`
+        : "Authenticate locally, inspect every VPS, and push CPU/RAM changes without tab-hopping.",
+  );
+  let currentDashboard = $derived.by(() => {
+    if (selectedScope === allActiveScopeId) {
+      return buildAllRunningDashboard(accounts, dashboardsByAccount);
+    }
+
+    if (!currentScopeAccountId) {
+      return null;
+    }
+
+    return dashboardsByAccount[currentScopeAccountId] ?? null;
+  });
+  let banner = $derived.by(() => {
+    if (statusMessage) {
+      return statusMessage;
+    }
+
+    if (selectedScope === allActiveScopeId) {
+      const failures = accounts.flatMap((account) =>
+        accountErrors[account.id]
+          ? [`${account.login}: ${accountErrors[account.id]}`]
+          : [],
+      );
+
+      if (failures.length > 0) {
+        return {
+          tone: "error",
+          text: `Some accounts could not sync. ${failures.join(" ")}`,
+        } satisfies BannerState;
+      }
+
+      return null;
+    }
+
+    if (currentScopeAccountId && accountErrors[currentScopeAccountId]) {
+      return {
+        tone: "error",
+        text: accountErrors[currentScopeAccountId],
+      } satisfies BannerState;
+    }
+
+    return null;
+  });
+
   let filteredServers = $derived.by(() => {
-    const servers = dashboard?.servers ?? [];
+    const servers = currentDashboard?.servers ?? [];
     const normalizedQuery = query.trim().toLowerCase();
 
     return servers
@@ -54,6 +132,7 @@
         }
 
         return [
+          server.accountLabel,
           server.displayName,
           server.hostname,
           server.ipAddress,
@@ -70,6 +149,13 @@
           Number(right.reconfigurable) - Number(left.reconfigurable);
         if (reconfigurableDelta !== 0) {
           return reconfigurableDelta;
+        }
+
+        const accountDelta = (left.accountLabel ?? "").localeCompare(
+          right.accountLabel ?? "",
+        );
+        if (accountDelta !== 0) {
+          return accountDelta;
         }
 
         return left.displayName.localeCompare(right.displayName);
@@ -89,63 +175,35 @@
   let pageEnd = $derived(Math.min(currentPage * pageSize, filteredCount));
   let pageItems = $derived(buildPageItems(currentPage, pageCount));
 
-  onMount(() => {
-    void (async () => {
-      if (browser) {
-        const raw = localStorage.getItem(storageKey);
+  function buildAllRunningDashboard(
+    storedAccounts: StoredAccount[],
+    dashboards: Record<string, DashboardPayload>,
+  ): DashboardPayload | null {
+    const loadedDashboards = storedAccounts
+      .map((account) => dashboards[account.id])
+      .filter((dashboard): dashboard is DashboardPayload => Boolean(dashboard));
 
-        if (raw) {
-          try {
-            const parsed = JSON.parse(raw) as {
-              query?: string;
-              pageSize?: number;
-              viewMode?: "control" | "monitor";
-            };
-
-            query = parsed.query ?? "";
-            pageSize = [5, 10, 25].includes(parsed.pageSize ?? 0)
-              ? (parsed.pageSize as 5 | 10 | 25)
-              : 5;
-            viewMode = parsed.viewMode === "monitor" ? "monitor" : "control";
-          } catch (error) {
-            console.warn("Failed to restore local UI preferences", error);
-          }
-        }
-
-        const storedToken = readStoredToken();
-        if (storedToken) {
-          begetToken = storedToken;
-          authenticated = true;
-          await loadDashboard(storedToken);
-        }
-      }
-
-      authReady = true;
-    })();
-  });
-
-  $effect(() => {
-    if (!browser) {
-      return;
+    if (loadedDashboards.length === 0) {
+      return null;
     }
 
-    localStorage.setItem(
-      storageKey,
-      JSON.stringify({
-        query,
-        pageSize,
-        viewMode,
-      }),
-    );
-  });
+    const servers = loadedDashboards
+      .flatMap((dashboard) => dashboard.servers)
+      .filter((server) => server.status === "RUNNING");
+    const fetchedAt = loadedDashboards
+      .map((dashboard) => dashboard.summary.fetchedAt)
+      .sort()
+      .at(-1);
 
-  function setViewMode(nextMode: "control" | "monitor") {
-    viewMode = nextMode;
-    setPage(1);
-
-    if (begetToken) {
-      void loadDashboard(begetToken, nextMode);
-    }
+    return {
+      servers,
+      summary: {
+        total: servers.length,
+        configurable: servers.filter((server) => server.configurable).length,
+        active: servers.length,
+        fetchedAt: fetchedAt ?? new Date().toISOString(),
+      },
+    };
   }
 
   function buildPageItems(currentPage: number, totalPages: number) {
@@ -193,59 +251,284 @@
     page = Math.max(1, Math.min(nextPage, pageCount));
   }
 
-  function clearAuthentication(errorMessage?: string) {
-    clearStoredToken();
-    begetToken = null;
-    authenticated = false;
-    dashboard = null;
-    dashboardError = null;
-    loginCodeRequired = false;
-
-    if (errorMessage) {
-      loginError = errorMessage;
-    }
+  function normalizeLogin(login: string) {
+    return login.trim().toLowerCase();
   }
 
-  async function loadDashboard(
-    token = begetToken,
+  function decorateDashboard(
+    payload: DashboardPayload,
+    account: StoredAccount,
+  ): DashboardPayload {
+    return {
+      ...payload,
+      servers: payload.servers.map((server) => ({
+        ...server,
+        accountId: account.id,
+        accountLabel: account.login,
+      })),
+    };
+  }
+
+  function tokenForAccount(accountId?: string) {
+    return accounts.find((account) => account.id === accountId)?.token ?? "";
+  }
+
+  function clearLoginState() {
+    loginError = null;
+    loginCodeRequired = false;
+    loginPending = false;
+  }
+
+  function syncLocalAccounts(nextAccounts = readStoredAccounts()) {
+    accounts = nextAccounts;
+  }
+
+  function dropAccountFromState(accountId: string) {
+    removeStoredAccount(accountId);
+
+    const { [accountId]: _removedDashboard, ...remainingDashboards } =
+      dashboardsByAccount;
+    dashboardsByAccount = remainingDashboards;
+
+    const { [accountId]: _removedError, ...remainingErrors } = accountErrors;
+    accountErrors = remainingErrors;
+
+    syncLocalAccounts();
+  }
+
+  onMount(() => {
+    void (async () => {
+      if (browser) {
+        const raw = localStorage.getItem(storageKey);
+
+        if (raw) {
+          try {
+            const parsed = JSON.parse(raw) as {
+              query?: string;
+              pageSize?: number;
+              viewMode?: "control" | "monitor";
+            };
+
+            query = parsed.query ?? "";
+            pageSize = [5, 10, 25].includes(parsed.pageSize ?? 0)
+              ? (parsed.pageSize as 5 | 10 | 25)
+              : 5;
+            viewMode = parsed.viewMode === "monitor" ? "monitor" : "control";
+          } catch (error) {
+            console.warn("Failed to restore local UI preferences", error);
+          }
+        }
+
+        const storedAccounts = readStoredAccounts();
+        const storedActiveAccountId = readActiveAccountId();
+
+        accounts = storedAccounts;
+        activeAccountId = storedAccounts.some(
+          (account) => account.id === storedActiveAccountId,
+        )
+          ? storedActiveAccountId
+          : (storedAccounts[0]?.id ?? null);
+        selectedScope = activeAccountId;
+
+        if (storedAccounts.length > 0) {
+          await loadDashboards(storedAccounts.map((account) => account.id));
+        }
+      }
+
+      authReady = true;
+    })();
+  });
+
+  $effect(() => {
+    if (!browser) {
+      return;
+    }
+
+    localStorage.setItem(
+      storageKey,
+      JSON.stringify({
+        query,
+        pageSize,
+        viewMode,
+      }),
+    );
+  });
+
+  $effect(() => {
+    const accountIds = new Set(accounts.map((account) => account.id));
+    let nextActiveAccountId = activeAccountId;
+
+    if (nextActiveAccountId && !accountIds.has(nextActiveAccountId)) {
+      nextActiveAccountId = accounts[0]?.id ?? null;
+    }
+
+    if (!nextActiveAccountId && accounts[0]) {
+      nextActiveAccountId = accounts[0].id;
+    }
+
+    if (nextActiveAccountId !== activeAccountId) {
+      activeAccountId = nextActiveAccountId;
+    }
+
+    if (selectedScope === allActiveScopeId && accounts.length < 2) {
+      selectedScope = nextActiveAccountId;
+    }
+
+    if (
+      selectedScope &&
+      selectedScope !== allActiveScopeId &&
+      !accountIds.has(selectedScope)
+    ) {
+      selectedScope = nextActiveAccountId;
+    }
+
+    if (!selectedScope && nextActiveAccountId) {
+      selectedScope = nextActiveAccountId;
+    }
+
+    writeActiveAccountId(nextActiveAccountId);
+  });
+
+  async function loadDashboards(
+    accountIds = accounts.map((account) => account.id),
     nextViewMode: "control" | "monitor" = viewMode,
   ) {
-    if (!token) {
-      clearAuthentication();
+    const targetAccounts = accounts.filter((account) =>
+      accountIds.includes(account.id),
+    );
+
+    if (targetAccounts.length === 0) {
+      loading = false;
       return;
     }
 
     loading = true;
-    dashboardError = null;
+    statusMessage = null;
 
-    try {
-      dashboard = await fetchDashboard(token, {
-        monitorOnly: nextViewMode === "monitor",
-      });
-    } catch (error) {
-      if (error instanceof BegetClientError && error.status === 401) {
-        clearAuthentication("Session expired. Sign in again.");
-        return;
+    const nextDashboards = { ...dashboardsByAccount };
+    const nextErrors = { ...accountErrors };
+    const expiredAccounts: StoredAccount[] = [];
+
+    await Promise.all(
+      targetAccounts.map(async (account) => {
+        try {
+          const payload = await fetchDashboard(account.token, {
+            monitorOnly: nextViewMode === "monitor",
+          });
+          nextDashboards[account.id] = decorateDashboard(payload, account);
+          delete nextErrors[account.id];
+        } catch (error) {
+          if (error instanceof BegetClientError && error.status === 401) {
+            expiredAccounts.push(account);
+            delete nextDashboards[account.id];
+            delete nextErrors[account.id];
+            return;
+          }
+
+          nextErrors[account.id] =
+            error instanceof Error
+              ? error.message
+              : "Dashboard request failed.";
+        }
+      }),
+    );
+
+    dashboardsByAccount = nextDashboards;
+    accountErrors = nextErrors;
+
+    if (expiredAccounts.length > 0) {
+      for (const account of expiredAccounts) {
+        removeStoredAccount(account.id);
       }
 
-      dashboardError =
-        error instanceof Error ? error.message : "Dashboard request failed.";
-    } finally {
-      loading = false;
+      const nextAccounts = readStoredAccounts();
+      syncLocalAccounts(nextAccounts);
+
+      if (nextAccounts.length === 0) {
+        loginError =
+          expiredAccounts.length === 1
+            ? `${expiredAccounts[0].login} session expired. Sign in again.`
+            : "Every saved session expired. Sign in again.";
+      } else {
+        statusMessage = {
+          tone: "error",
+          text:
+            expiredAccounts.length === 1
+              ? `${expiredAccounts[0].login} session expired and was removed.`
+              : `${expiredAccounts.length} account sessions expired and were removed.`,
+        };
+      }
+    }
+
+    loading = false;
+  }
+
+  async function setViewMode(nextMode: "control" | "monitor") {
+    viewMode = nextMode;
+    setPage(1);
+    await loadDashboards();
+  }
+
+  function selectScope(scopeId: string) {
+    statusMessage = null;
+    addingAccount = false;
+    setPage(1);
+
+    if (scopeId === allActiveScopeId) {
+      selectedScope = allActiveScopeId;
+      return;
+    }
+
+    activeAccountId = scopeId;
+    selectedScope = scopeId;
+  }
+
+  function openAddAccount() {
+    statusMessage = null;
+    addingAccount = true;
+    clearLoginState();
+  }
+
+  function closeAddAccount() {
+    addingAccount = false;
+    clearLoginState();
+  }
+
+  async function handleRefresh() {
+    if (selectedScope === allActiveScopeId) {
+      await loadDashboards();
+      return;
+    }
+
+    if (currentScopeAccountId) {
+      await loadDashboards([currentScopeAccountId]);
     }
   }
 
   async function handleLogin(payload: AuthLoginPayload) {
     loginPending = true;
     loginError = null;
+    statusMessage = null;
 
     try {
       const response = await authenticate(payload);
-      begetToken = response.token;
-      writeStoredToken(response.token, payload.saveMe !== false);
+      const normalizedLogin = normalizeLogin(payload.login) || "saved-session";
+      const account = upsertStoredAccount({
+        id: normalizedLogin,
+        login:
+          normalizedLogin === "saved-session"
+            ? "Saved session"
+            : normalizedLogin,
+        token: response.token,
+        persistent: payload.saveMe !== false,
+      });
+
+      syncLocalAccounts();
+      activeAccountId = account.id;
+      selectedScope = account.id;
+      addingAccount = false;
       loginCodeRequired = false;
-      authenticated = true;
-      await loadDashboard(response.token);
+      await loadDashboards([account.id]);
     } catch (error) {
       if (error instanceof BegetClientError) {
         loginCodeRequired = error.code
@@ -262,15 +545,17 @@
   }
 
   async function handleLogout() {
-    const token = begetToken;
-    clearAuthentication();
-
-    if (!token) {
+    const account = activeAccount;
+    if (!account) {
       return;
     }
 
+    statusMessage = null;
+    closeAddAccount();
+    dropAccountFromState(account.id);
+
     try {
-      await logout(token);
+      await logout(account.token);
     } catch (error) {
       console.warn("Beget logout request failed", error);
     }
@@ -319,11 +604,11 @@
       <div class="hero-copy">
         <p class="kicker">Svelte 5 / Bun / Static client</p>
         <h2>Rule your Beget fleet without leaving one screen.</h2>
-        <p>Restoring the local Beget session from this browser.</p>
+        <p>Restoring local Beget sessions from this browser.</p>
       </div>
 
       <div class="loading-card">
-        <p>Restoring local session…</p>
+        <p>Restoring local sessions...</p>
       </div>
     </section>
   {:else if !authenticated}
@@ -332,8 +617,8 @@
         <p class="kicker">Svelte 5 / Bun / Static client</p>
         <h2>Rule your Beget fleet without leaving one screen.</h2>
         <p>
-          This app keeps the Beget session in this browser and talks to the
-          Beget API directly for CPU and RAM reconfiguration.
+          This app keeps Beget sessions in this browser, supports multiple
+          accounts, and can show running VPS cards across every saved account.
         </p>
         <p class="source-note">
           Check the source code in the
@@ -349,6 +634,7 @@
 
       <LoginForm
         codeRequired={loginCodeRequired}
+        description="Authenticate directly with the Beget API, save more than one account in this browser, and switch between them without retyping credentials."
         error={loginError}
         onLogin={handleLogin}
         pending={loginPending}
@@ -356,14 +642,46 @@
     </section>
   {:else}
     <section class="dashboard" transition:fade={{ duration: 180 }}>
+      <div class="account-bar">
+        <div aria-label="Account scope" class="scope-tabs">
+          {#each accounts as account (account.id)}
+            <button
+              class="scope-button"
+              class:active={selectedScope === account.id}
+              onclick={() => {
+                selectScope(account.id);
+              }}
+              type="button"
+            >
+              {account.login}
+            </button>
+          {/each}
+
+          {#if showAllActiveScope}
+            <button
+              class="scope-button"
+              class:active={selectedScope === allActiveScopeId}
+              onclick={() => {
+                selectScope(allActiveScopeId);
+              }}
+              type="button"
+            >
+              All running
+            </button>
+          {/if}
+        </div>
+
+        <div class="scope-summary">
+          <span>Active account</span>
+          <strong>{activeAccount?.login ?? 'n/a'}</strong>
+        </div>
+      </div>
+
       <header class="masthead">
-        <div>
+        <div class="masthead-copy">
           <p class="kicker">Beget Control Room</p>
-          <h1>VPS configuration deck</h1>
-          <p class="deck">
-            Authenticate locally, inspect every VPS, and push CPU/RAM changes
-            without tab-hopping.
-          </p>
+          <h1>{scopeTitle}</h1>
+          <p class="deck">{scopeDescription}</p>
         </div>
 
         <div class="masthead-actions">
@@ -372,7 +690,7 @@
               class="view-button"
               class:active={viewMode === "control"}
               onclick={() => {
-                setViewMode("control");
+                void setViewMode("control");
               }}
               type="button"
             >
@@ -382,7 +700,7 @@
               class="view-button"
               class:active={viewMode === "monitor"}
               onclick={() => {
-                setViewMode("monitor");
+                void setViewMode("monitor");
               }}
               type="button"
             >
@@ -390,39 +708,76 @@
             </button>
           </div>
 
+          <button class="outline" onclick={openAddAccount} type="button">
+            Add account
+          </button>
           <button
             class="outline"
             disabled={loading}
             onclick={() => {
-              void loadDashboard();
-            }}
+            void handleRefresh();
+          }}
             type="button"
           >
             Refresh
           </button>
           <button class="outline" onclick={handleLogout} type="button">
-            Logout
+            Logout active
           </button>
         </div>
       </header>
 
+      {#if addingAccount}
+        <section class="account-entry">
+          <div class="account-entry-head">
+            <div class="account-entry-copy">
+              <p class="kicker">Add Another Account</p>
+              <h3>Keep multiple Beget sessions in one browser.</h3>
+              <p>
+                New logins stay local to this browser. After sign-in, the
+                account appears in the scope bar immediately and can join the
+                combined running-servers tab.
+              </p>
+            </div>
+
+            <button class="outline" onclick={closeAddAccount} type="button">
+              Close
+            </button>
+          </div>
+
+          <LoginForm
+            codeRequired={loginCodeRequired}
+            description="Authenticate this additional Beget account and keep its session in the current browser."
+            error={loginError}
+            eyebrow="Multi-Account"
+            onLogin={handleLogin}
+            pending={loginPending}
+            pendingLabel="Adding account..."
+            submitLabel="Add account"
+            title="Link another account"
+          />
+        </section>
+      {/if}
+
       <div class="toolbar">
         <div class="toolbar-box">
           <span>Total VPS</span>
-          <strong>{dashboard?.summary.total ?? '—'}</strong>
+          <strong>{currentDashboard?.summary.total ?? '—'}</strong>
         </div>
         <div class="toolbar-box">
           <span>Configurable</span>
-          <strong>{dashboard?.summary.configurable ?? '—'}</strong>
+          <strong>{currentDashboard?.summary.configurable ?? '—'}</strong>
         </div>
         <div class="toolbar-box">
           <span>Running</span>
-          <strong>{dashboard?.summary.active ?? '—'}</strong>
+          <strong>{currentDashboard?.summary.active ?? '—'}</strong>
         </div>
         <div class="toolbar-box wide">
           <span>Last sync</span>
           <strong
-            >{dashboard ? formatTimestamp(dashboard.summary.fetchedAt) : 'Waiting for data'}</strong
+            >{currentDashboard
+              ? formatTimestamp(currentDashboard.summary.fetchedAt)
+              : 'Waiting for data'}</strong
           >
         </div>
       </div>
@@ -435,7 +790,7 @@
             oninput={() => {
               setPage(1);
             }}
-            placeholder="hostname, IP, region, status"
+            placeholder="account, hostname, IP, region, status"
           >
         </label>
 
@@ -459,25 +814,36 @@
         </div>
       </div>
 
-      {#if dashboardError}
-        <p class="banner error">{dashboardError}</p>
+      {#if banner}
+        <p
+          class="banner"
+          class:error={banner.tone === "error"}
+          class:neutral={banner.tone === "neutral"}
+        >
+          {banner.text}
+        </p>
       {/if}
 
-      {#if loading && !dashboard}
+      {#if loading && !currentDashboard}
         <div class="loading-state">Loading the VPS deck...</div>
-      {:else if dashboard}
+      {:else if currentDashboard}
         <div class="grid" class:monitor-grid={viewMode === "monitor"}>
-          {#each visibleServers as server (`${server.id}:${server.currentCpuCount}:${server.currentMemory}:${server.status}`)}
+          {#each visibleServers as server (`${server.accountId ?? 'default'}:${server.id}:${server.currentCpuCount}:${server.currentMemory}:${server.status}`)}
             <VpsCard
-              onRefresh={loadDashboard}
+              onRefresh={() => {
+                if (server.accountId) {
+                  return loadDashboards([server.accountId]);
+                }
+              }}
               {server}
-              token={begetToken ?? ""}
+              showAccountLabel={selectedScope === allActiveScopeId}
+              token={tokenForAccount(server.accountId)}
               {viewMode}
             />
           {:else}
             <div class="empty-state">
               <h3>No VPS cards match the current filter.</h3>
-              <p>Change the search query or switch to another page.</p>
+              <p>Change the search query, switch account scope, or refresh.</p>
             </div>
           {/each}
         </div>
@@ -515,7 +881,7 @@
                     {item}
                   </button>
                 {:else}
-                  <span aria-hidden="true" class="page-gap">…</span>
+                  <span aria-hidden="true" class="page-gap">...</span>
                 {/if}
               {/each}
 
@@ -532,6 +898,11 @@
             </div>
           </nav>
         {/if}
+      {:else}
+        <div class="empty-state">
+          <h3>No VPS data is available for this scope yet.</h3>
+          <p>Refresh the current scope or switch to another saved account.</p>
+        </div>
       {/if}
     </section>
   {/if}
@@ -638,7 +1009,8 @@
   }
 
   .hero-copy p:last-child,
-  .deck {
+  .deck,
+  .account-entry-copy p:last-child {
     line-height: 1.6;
     color: rgba(221, 232, 240, 0.78);
   }
@@ -664,11 +1036,61 @@
     padding-block: 1.5rem 2rem;
   }
 
+  .account-bar,
   .masthead,
   .toolbar,
-  .filters {
+  .filters,
+  .account-entry {
     display: grid;
     gap: 1rem;
+  }
+
+  .account-bar {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+  }
+
+  .scope-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .scope-button {
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(228, 237, 243, 0.84);
+  }
+
+  .scope-button.active {
+    background: linear-gradient(
+      135deg,
+      rgba(248, 184, 75, 0.22),
+      rgba(125, 231, 243, 0.18)
+    );
+    color: #f9fbfd;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  }
+
+  .scope-summary {
+    padding: 0.75rem 0.95rem;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 1.1rem;
+    background: rgba(8, 18, 31, 0.82);
+    backdrop-filter: blur(12px);
+  }
+
+  .scope-summary span {
+    display: block;
+    font-size: 0.76rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: rgba(188, 205, 218, 0.62);
+  }
+
+  .scope-summary strong {
+    display: block;
+    margin-top: 0.35rem;
+    color: #f5f8fb;
   }
 
   .masthead {
@@ -687,6 +1109,32 @@
     display: flex;
     gap: 0.75rem;
     flex-wrap: wrap;
+  }
+
+  .account-entry {
+    grid-template-columns: minmax(0, 1fr) minmax(320px, 440px);
+    align-items: start;
+    padding: 1rem;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 1.25rem;
+    background: rgba(8, 18, 31, 0.82);
+    backdrop-filter: blur(12px);
+  }
+
+  .account-entry-head {
+    display: grid;
+    gap: 1rem;
+    align-content: start;
+  }
+
+  .account-entry-copy {
+    max-width: 54ch;
+  }
+
+  .account-entry-copy h3 {
+    margin-bottom: 0.7rem;
+    font-size: clamp(1.5rem, 3vw, 2.1rem);
+    line-height: 1;
   }
 
   .toolbar {
@@ -818,6 +1266,11 @@
     background: rgba(103, 16, 10, 0.35);
   }
 
+  .banner.neutral {
+    color: #d7eef6;
+    background: rgba(12, 74, 93, 0.34);
+  }
+
   .grid {
     display: grid;
     grid-template-columns: 1fr;
@@ -907,10 +1360,12 @@
 
   @media (max-width: 900px) {
     .auth-wrap,
+    .account-bar,
     .masthead,
     .filters,
     .toolbar,
-    .pagination {
+    .pagination,
+    .account-entry {
       grid-template-columns: 1fr;
     }
 
