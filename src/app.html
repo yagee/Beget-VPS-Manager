@@ -3,6 +3,28 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script>
+      (() => {
+        const storageKey = "beget-vps-manager:prefs";
+        const fallbackTheme = window.matchMedia("(prefers-color-scheme: dark)")
+          .matches
+          ? "dark"
+          : "light";
+
+        try {
+          const raw = localStorage.getItem(storageKey);
+          const parsed = raw ? JSON.parse(raw) : null;
+          const theme =
+            parsed?.theme === "light" || parsed?.theme === "dark"
+              ? parsed.theme
+              : fallbackTheme;
+
+          document.documentElement.dataset.theme = theme;
+        } catch {
+          document.documentElement.dataset.theme = fallbackTheme;
+        }
+      })();
+    </script>
     %sveltekit.head%
   </head>
   <body data-sveltekit-preload-data="hover">

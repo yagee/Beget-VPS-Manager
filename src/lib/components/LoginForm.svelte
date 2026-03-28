@@ -120,18 +120,10 @@
     display: grid;
     gap: 1rem;
     padding: 1.6rem;
-    border: 1px solid rgba(255, 255, 255, 0.14);
+    border: 1px solid var(--app-panel-border-strong);
     border-radius: 1.5rem;
-    background:
-      linear-gradient(180deg, rgba(8, 18, 31, 0.96), rgba(5, 11, 22, 0.92)),
-      radial-gradient(
-        circle at top right,
-        rgba(27, 190, 214, 0.18),
-        transparent 40%
-      );
-    box-shadow:
-      0 20px 70px rgba(1, 6, 14, 0.45),
-      inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    background: var(--login-card-bg);
+    box-shadow: var(--login-card-shadow);
   }
 
   .copy {
@@ -149,7 +141,7 @@
       monospace;
     text-transform: uppercase;
     letter-spacing: 0.18em;
-    color: #7de7f3;
+    color: var(--app-link);
   }
 
   h1 {
@@ -159,12 +151,12 @@
       "Avenir Next",
       "Segoe UI",
       sans-serif;
-    color: #f3f8fc;
+    color: var(--app-text-strong);
   }
 
   .lede {
     margin: 0;
-    color: rgba(222, 232, 240, 0.78);
+    color: var(--app-text-soft);
     line-height: 1.55;
   }
 
@@ -177,21 +169,21 @@
   .check-copy strong,
   .check-copy small {
     font-size: 0.88rem;
-    color: rgba(214, 227, 237, 0.86);
+    color: var(--app-text-secondary);
   }
 
   input {
     width: 100%;
     padding: 0.85rem 0.95rem;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--app-panel-border);
     border-radius: 0.95rem;
-    background: rgba(8, 17, 26, 0.84);
-    color: #f4f8fb;
+    background: var(--app-field-bg);
+    color: var(--app-text-strong);
     font: inherit;
   }
 
   input:focus {
-    outline: 2px solid rgba(125, 231, 243, 0.55);
+    outline: 2px solid var(--app-focus-ring);
     outline-offset: 2px;
   }
 
@@ -201,9 +193,9 @@
     align-items: flex-start;
     gap: 0.85rem;
     padding: 0.9rem 1rem;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--app-panel-border);
     border-radius: 1rem;
-    background: rgba(8, 17, 26, 0.62);
+    background: var(--app-panel-bg-soft);
     cursor: pointer;
   }
 
@@ -221,9 +213,9 @@
     height: 1.2rem;
     padding: 0;
     margin-top: 0.1rem;
-    border: 1px solid rgba(255, 255, 255, 0.22);
+    border: 1px solid var(--app-panel-border-strong);
     border-radius: 0.38rem;
-    background: rgba(4, 10, 18, 0.88);
+    background: var(--app-field-bg);
     transition:
       border-color 160ms ease,
       background 160ms ease,
@@ -240,7 +232,7 @@
   }
 
   .check-copy small {
-    color: rgba(191, 208, 220, 0.7);
+    color: var(--app-text-muted);
   }
 
   .check input:checked + .check-mark {
@@ -262,8 +254,8 @@
     margin: 0;
     padding: 0.85rem 0.95rem;
     border-radius: 1rem;
-    background: rgba(124, 20, 12, 0.28);
-    color: #ffcabf;
+    background: var(--danger-bg);
+    color: var(--danger-text);
   }
 
   .submit {

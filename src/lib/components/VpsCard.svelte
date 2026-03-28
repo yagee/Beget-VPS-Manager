@@ -694,16 +694,10 @@
     display: grid;
     gap: 1rem;
     padding: 1.2rem;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--app-panel-border);
     border-radius: 1.35rem;
-    background:
-      linear-gradient(180deg, rgba(9, 18, 30, 0.96), rgba(6, 13, 23, 0.94)),
-      radial-gradient(
-        circle at top left,
-        rgba(255, 198, 90, 0.14),
-        transparent 34%
-      );
-    box-shadow: 0 24px 65px rgba(3, 7, 16, 0.3);
+    background: var(--vps-card-bg);
+    box-shadow: var(--app-card-shadow);
   }
 
   .card.monitor {
@@ -739,7 +733,7 @@
     padding: 0.22rem 0.55rem;
     border-radius: 999px;
     background: rgba(125, 231, 243, 0.12);
-    color: #9aeef8;
+    color: var(--app-link);
     font:
       700 0.68rem / 1 "IBM Plex Mono",
       "SFMono-Regular",
@@ -760,7 +754,7 @@
       "Avenir Next",
       "Segoe UI",
       sans-serif;
-    color: #f4f7fb;
+    color: var(--app-text-strong);
   }
 
   .meta {
@@ -772,7 +766,7 @@
       "SFMono-Regular",
       Consolas,
       monospace;
-    color: rgba(187, 208, 224, 0.72);
+    color: var(--app-text-soft);
   }
 
   .meta span::before {
@@ -788,9 +782,9 @@
     width: 2.5rem;
     height: 2.5rem;
     padding: 0;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    background: rgba(255, 255, 255, 0.05);
-    color: rgba(217, 231, 239, 0.66);
+    border: 1px solid var(--app-panel-border);
+    background: var(--app-panel-bg-soft);
+    color: var(--app-text-muted);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
   }
 
@@ -822,23 +816,23 @@
   }
 
   .ok {
-    background: rgba(85, 224, 167, 0.14);
-    color: #8cf4c0;
+    background: var(--status-ok-bg);
+    color: var(--status-ok-text);
   }
 
   .warn {
-    background: rgba(255, 197, 92, 0.16);
-    color: #ffd27f;
+    background: var(--status-warn-bg);
+    color: var(--status-warn-text);
   }
 
   .busy {
-    background: rgba(103, 197, 255, 0.16);
-    color: #93dbff;
+    background: var(--status-busy-bg);
+    color: var(--status-busy-text);
   }
 
   .muted {
-    background: rgba(255, 255, 255, 0.08);
-    color: rgba(220, 230, 238, 0.76);
+    background: var(--status-muted-bg);
+    color: var(--status-muted-text);
   }
 
   .facts,
@@ -860,7 +854,7 @@
   .facts > div {
     padding: 0.8rem 0.9rem;
     border-radius: 1rem;
-    background: rgba(255, 255, 255, 0.04);
+    background: var(--app-panel-bg-soft);
   }
 
   .facts span {
@@ -868,13 +862,13 @@
     font-size: 0.74rem;
     text-transform: uppercase;
     letter-spacing: 0.08em;
-    color: rgba(185, 203, 218, 0.64);
+    color: var(--app-text-muted);
   }
 
   .facts strong {
     display: block;
     margin-top: 0.3rem;
-    color: #f5f9fb;
+    color: var(--app-text-strong);
   }
 
   .facts-select {
@@ -882,16 +876,16 @@
     gap: 0.45rem;
     padding: 0.8rem 0.9rem;
     border-radius: 1rem;
-    background: rgba(255, 255, 255, 0.04);
+    background: var(--app-panel-bg-soft);
   }
 
   .facts-select select {
     width: 100%;
     padding: 0.7rem 0.8rem;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--app-panel-border);
     border-radius: 0.8rem;
-    background: rgba(5, 13, 22, 0.72);
-    color: #f4f7fb;
+    background: var(--app-field-bg);
+    color: var(--app-text-strong);
     font: inherit;
   }
 
@@ -914,11 +908,11 @@
     font-size: 0.74rem;
     text-transform: uppercase;
     letter-spacing: 0.08em;
-    color: rgba(185, 203, 218, 0.64);
+    color: var(--app-text-muted);
   }
 
   .disk-copy strong {
-    color: #f5f9fb;
+    color: var(--app-text-strong);
   }
 
   .price-card {
@@ -932,18 +926,18 @@
 
   .price-row + .price-row {
     padding-top: 0.65rem;
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    border-top: 1px solid var(--app-panel-border);
   }
 
   .price-row span {
     font-size: 0.74rem;
     text-transform: uppercase;
     letter-spacing: 0.08em;
-    color: rgba(185, 203, 218, 0.64);
+    color: var(--app-text-muted);
   }
 
   .price-row strong {
-    color: #f5f9fb;
+    color: var(--app-text-strong);
   }
 
   .metrics {
@@ -973,7 +967,7 @@
       monospace;
     letter-spacing: 0.12em;
     text-transform: uppercase;
-    color: rgba(188, 205, 218, 0.62);
+    color: var(--app-text-muted);
   }
 
   .card.monitor .metrics-label {
@@ -986,7 +980,7 @@
     gap: 0.35rem;
     padding: 0.28rem;
     border-radius: 999px;
-    background: rgba(255, 255, 255, 0.04);
+    background: var(--app-toggle-bg);
   }
 
   .period-button {
@@ -994,7 +988,7 @@
     border-radius: 999px;
     padding: 0.48rem 0.72rem;
     background: transparent;
-    color: rgba(219, 231, 239, 0.8);
+    color: var(--app-text-secondary);
     font:
       700 0.72rem / 1 "IBM Plex Mono",
       "SFMono-Regular",
@@ -1009,18 +1003,14 @@
   }
 
   .period-button:hover {
-    color: #f6fafc;
+    color: var(--app-text-strong);
     transform: translateY(-1px);
   }
 
   .period-button.active {
-    background: linear-gradient(
-      135deg,
-      rgba(248, 184, 75, 0.22),
-      rgba(125, 231, 243, 0.18)
-    );
-    color: #f9fbfd;
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+    background: var(--app-active-bg);
+    color: var(--app-text-strong);
+    box-shadow: var(--app-active-shadow);
   }
 
   .card.monitor .periods {
@@ -1038,16 +1028,16 @@
     gap: 0.55rem;
     padding: 0.9rem;
     border-radius: 1rem;
-    background: rgba(255, 255, 255, 0.035);
+    background: var(--app-panel-bg-soft);
   }
 
   .control span {
     font-size: 0.84rem;
-    color: rgba(209, 221, 231, 0.82);
+    color: var(--app-text-secondary);
   }
 
   .control strong {
-    color: #f5f8fa;
+    color: var(--app-text-strong);
   }
 
   input[type="range"] {
@@ -1058,10 +1048,10 @@
   .number {
     width: 100%;
     padding: 0.7rem 0.8rem;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--app-panel-border);
     border-radius: 0.8rem;
-    background: rgba(5, 13, 22, 0.72);
-    color: #f4f7fb;
+    background: var(--app-field-bg);
+    color: var(--app-text-strong);
     font: inherit;
   }
 
@@ -1069,28 +1059,28 @@
     margin: 0;
     padding: 0.75rem 0.85rem;
     border-radius: 0.95rem;
-    background: rgba(125, 231, 243, 0.08);
-    color: #bfeff5;
+    background: var(--info-bg);
+    color: var(--info-text);
   }
 
   .info.muted {
-    background: rgba(255, 255, 255, 0.05);
-    color: rgba(222, 231, 237, 0.8);
+    background: var(--info-muted-bg);
+    color: var(--info-muted-text);
   }
 
   .info.error {
-    background: rgba(255, 109, 91, 0.14);
-    color: #ffbdb3;
+    background: var(--danger-bg);
+    color: var(--danger-text);
   }
 
   .info.error-soft {
-    background: rgba(255, 109, 91, 0.1);
-    color: #ffbdb3;
+    background: var(--danger-bg-soft);
+    color: var(--danger-text);
   }
 
   .info.success {
-    background: rgba(93, 232, 177, 0.12);
-    color: #abf4d1;
+    background: var(--success-bg);
+    color: var(--success-text);
   }
 
   .recalculating {
@@ -1121,8 +1111,8 @@
   .flags span {
     padding: 0.4rem 0.65rem;
     border-radius: 999px;
-    background: rgba(255, 255, 255, 0.08);
-    color: rgba(235, 240, 245, 0.8);
+    background: var(--flag-bg);
+    color: var(--flag-text);
     font-size: 0.75rem;
   }
 
@@ -1147,8 +1137,8 @@
   }
 
   .ghost {
-    background: rgba(255, 255, 255, 0.08);
-    color: #d9e6ef;
+    background: var(--app-button-bg);
+    color: var(--app-button-text);
   }
 
   .actions .ghost {
@@ -1163,6 +1153,13 @@
   button:disabled {
     cursor: not-allowed;
     opacity: 0.55;
+  }
+
+  button:focus-visible,
+  .facts-select select:focus,
+  .number:focus {
+    outline: 2px solid var(--app-focus-ring);
+    outline-offset: 2px;
   }
 
   @media (max-width: 1080px) {

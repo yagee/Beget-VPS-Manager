@@ -40,6 +40,27 @@
     tone: "error" | "neutral";
     text: string;
   };
+  type Theme = "light" | "dark";
+  type StoredPreferences = {
+    query?: string;
+    pageSize?: number;
+    theme?: Theme;
+    viewMode?: "control" | "monitor";
+    favoriteKeys?: string[];
+  };
+
+  function isTheme(value: unknown): value is Theme {
+    return value === "light" || value === "dark";
+  }
+
+  function readInitialTheme(): Theme {
+    if (!browser) {
+      return "dark";
+    }
+
+    const theme = document.documentElement.dataset.theme;
+    return isTheme(theme) ? theme : "dark";
+  }
 
   let authReady = $state(false);
   let accounts = $state<StoredAccount[]>([]);
@@ -57,6 +78,7 @@
   let query = $state("");
   let page = $state(1);
   let pageSize = $state(5);
+  let theme = $state<Theme>(readInitialTheme());
   let viewMode = $state<"control" | "monitor">("control");
 
   let authenticated = $derived(accounts.length > 0);
@@ -260,6 +282,10 @@
     page = Math.max(1, Math.min(nextPage, pageCount));
   }
 
+  function toggleTheme() {
+    theme = theme === "dark" ? "light" : "dark";
+  }
+
   function normalizeLogin(login: string) {
     return login.trim().toLowerCase();
   }
@@ -331,17 +357,13 @@
 
         if (raw) {
           try {
-            const parsed = JSON.parse(raw) as {
-              query?: string;
-              pageSize?: number;
-              viewMode?: "control" | "monitor";
-              favoriteKeys?: string[];
-            };
+            const parsed = JSON.parse(raw) as StoredPreferences;
 
             query = parsed.query ?? "";
             pageSize = [5, 10, 25].includes(parsed.pageSize ?? 0)
               ? (parsed.pageSize as 5 | 10 | 25)
               : 5;
+            theme = isTheme(parsed.theme) ? parsed.theme : theme;
             viewMode = parsed.viewMode === "monitor" ? "monitor" : "control";
             favoriteKeys = Array.isArray(parsed.favoriteKeys)
               ? parsed.favoriteKeys.filter(
@@ -378,11 +400,20 @@
       return;
     }
 
+    document.documentElement.dataset.theme = theme;
+  });
+
+  $effect(() => {
+    if (!browser) {
+      return;
+    }
+
     localStorage.setItem(
       storageKey,
       JSON.stringify({
         query,
         pageSize,
+        theme,
         viewMode,
         favoriteKeys,
       }),
@@ -633,6 +664,17 @@
 
 <div class="shell">
   <div class="background"></div>
+  <div class="shell-controls">
+    <button
+      aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}
+      class="theme-toggle"
+      onclick={toggleTheme}
+      type="button"
+    >
+      <span>Theme</span>
+      <strong>{theme === "dark" ? "Dark" : "Light"}</strong>
+    </button>
+  </div>
 
   {#if !authReady}
     <section class="auth-wrap" transition:fade={{ duration: 180 }}>
@@ -948,27 +990,10 @@
 </div>
 
 <style>
-  :global(body) {
-    margin: 0;
-    font-family: "Space Grotesk", "Avenir Next", "Segoe UI", sans-serif;
-    background: #06101c;
-    color: #eef5fa;
-  }
-
-  :global(html) {
-    background: #06101c;
-  }
-
-  :global(*) {
-    box-sizing: border-box;
-  }
-
-  .shell {
-    position: relative;
-    min-height: 100vh;
-    padding: 1.25rem;
-    overflow: hidden;
-    background:
+  :global(:root) {
+    color-scheme: dark;
+    --app-bg: #06101c;
+    --app-shell-bg:
       radial-gradient(
         circle at top left,
         rgba(24, 145, 163, 0.22),
@@ -980,19 +1005,207 @@
         transparent 23%
       ),
       linear-gradient(180deg, #08131f 0%, #07111c 55%, #050d17 100%);
+    --app-grid-line: rgba(125, 231, 243, 0.05);
+    --app-text: #eef5fa;
+    --app-text-strong: #f5f8fb;
+    --app-text-soft: rgba(221, 232, 240, 0.78);
+    --app-text-secondary: rgba(219, 231, 239, 0.78);
+    --app-text-muted: rgba(188, 205, 218, 0.62);
+    --app-panel-border: rgba(255, 255, 255, 0.08);
+    --app-panel-border-strong: rgba(255, 255, 255, 0.14);
+    --app-panel-bg: rgba(8, 18, 31, 0.82);
+    --app-panel-bg-strong: rgba(8, 18, 31, 0.9);
+    --app-panel-bg-soft: rgba(255, 255, 255, 0.04);
+    --app-field-bg: rgba(6, 13, 23, 0.72);
+    --app-button-bg: rgba(255, 255, 255, 0.08);
+    --app-button-text: #e4edf3;
+    --app-button-text-soft: rgba(228, 237, 243, 0.84);
+    --app-toggle-bg: rgba(255, 255, 255, 0.05);
+    --app-active-bg: linear-gradient(
+      135deg,
+      rgba(248, 184, 75, 0.22),
+      rgba(125, 231, 243, 0.18)
+    );
+    --app-active-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+    --app-card-shadow: 0 24px 65px rgba(3, 7, 16, 0.3);
+    --app-focus-ring: rgba(125, 231, 243, 0.45);
+    --app-banner-error-bg: rgba(103, 16, 10, 0.35);
+    --app-banner-error-text: #ffc2ba;
+    --app-banner-neutral-bg: rgba(12, 74, 93, 0.34);
+    --app-banner-neutral-text: #d7eef6;
+    --app-link: #7de7f3;
+    --app-link-hover: #ffd37a;
+    --login-card-bg:
+      linear-gradient(180deg, rgba(8, 18, 31, 0.96), rgba(5, 11, 22, 0.92)),
+      radial-gradient(
+        circle at top right,
+        rgba(27, 190, 214, 0.18),
+        transparent 40%
+      );
+    --login-card-shadow:
+      0 20px 70px rgba(1, 6, 14, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    --vps-card-bg:
+      linear-gradient(180deg, rgba(9, 18, 30, 0.96), rgba(6, 13, 23, 0.94)),
+      radial-gradient(
+        circle at top left,
+        rgba(255, 198, 90, 0.14),
+        transparent 34%
+      );
+    --status-ok-bg: rgba(85, 224, 167, 0.14);
+    --status-ok-text: #8cf4c0;
+    --status-warn-bg: rgba(255, 197, 92, 0.16);
+    --status-warn-text: #ffd27f;
+    --status-busy-bg: rgba(103, 197, 255, 0.16);
+    --status-busy-text: #93dbff;
+    --status-muted-bg: rgba(255, 255, 255, 0.08);
+    --status-muted-text: rgba(220, 230, 238, 0.76);
+    --info-bg: rgba(125, 231, 243, 0.08);
+    --info-text: #bfeff5;
+    --info-muted-bg: rgba(255, 255, 255, 0.05);
+    --info-muted-text: rgba(222, 231, 237, 0.8);
+    --danger-bg: rgba(255, 109, 91, 0.14);
+    --danger-bg-soft: rgba(255, 109, 91, 0.1);
+    --danger-text: #ffbdb3;
+    --success-bg: rgba(93, 232, 177, 0.12);
+    --success-text: #abf4d1;
+    --flag-bg: rgba(255, 255, 255, 0.08);
+    --flag-text: rgba(235, 240, 245, 0.8);
+    --metric-grid: rgba(255, 255, 255, 0.1);
+    --metric-surface: rgba(255, 255, 255, 0.04);
+    --placeholder-surface: rgba(255, 255, 255, 0.04);
+  }
+
+  :global(html[data-theme="light"]) {
+    color-scheme: light;
+    --app-bg: #eaf2f6;
+    --app-shell-bg:
+      radial-gradient(
+        circle at top left,
+        rgba(24, 145, 163, 0.18),
+        transparent 25%
+      ),
+      radial-gradient(
+        circle at top right,
+        rgba(255, 184, 75, 0.18),
+        transparent 23%
+      ),
+      linear-gradient(180deg, #fbfdfe 0%, #f1f6f9 55%, #e6eef3 100%);
+    --app-grid-line: rgba(20, 52, 67, 0.08);
+    --app-text: #14202c;
+    --app-text-strong: #0f1b27;
+    --app-text-soft: rgba(20, 32, 44, 0.78);
+    --app-text-secondary: rgba(31, 47, 61, 0.78);
+    --app-text-muted: rgba(55, 76, 92, 0.62);
+    --app-panel-border: rgba(17, 36, 49, 0.12);
+    --app-panel-border-strong: rgba(17, 36, 49, 0.16);
+    --app-panel-bg: rgba(255, 255, 255, 0.72);
+    --app-panel-bg-strong: rgba(255, 255, 255, 0.88);
+    --app-panel-bg-soft: rgba(17, 36, 49, 0.05);
+    --app-field-bg: rgba(255, 255, 255, 0.92);
+    --app-button-bg: rgba(17, 36, 49, 0.08);
+    --app-button-text: #213444;
+    --app-button-text-soft: rgba(33, 52, 68, 0.84);
+    --app-toggle-bg: rgba(17, 36, 49, 0.06);
+    --app-active-bg: linear-gradient(
+      135deg,
+      rgba(248, 184, 75, 0.22),
+      rgba(125, 231, 243, 0.24)
+    );
+    --app-active-shadow: inset 0 0 0 1px rgba(17, 36, 49, 0.12);
+    --app-card-shadow: 0 24px 65px rgba(50, 74, 90, 0.16);
+    --app-focus-ring: rgba(47, 159, 177, 0.32);
+    --app-banner-error-bg: rgba(196, 57, 39, 0.12);
+    --app-banner-error-text: #a53a2a;
+    --app-banner-neutral-bg: rgba(12, 139, 166, 0.1);
+    --app-banner-neutral-text: #0c6476;
+    --app-link: #0e95a7;
+    --app-link-hover: #c28a1f;
+    --login-card-bg:
+      linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0.96),
+        rgba(245, 250, 252, 0.94)
+      ),
+      radial-gradient(
+        circle at top right,
+        rgba(27, 190, 214, 0.12),
+        transparent 42%
+      );
+    --login-card-shadow:
+      0 20px 70px rgba(66, 93, 110, 0.16),
+      inset 0 1px 0 rgba(255, 255, 255, 0.65);
+    --vps-card-bg:
+      linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0.95),
+        rgba(247, 250, 252, 0.94)
+      ),
+      radial-gradient(
+        circle at top left,
+        rgba(255, 198, 90, 0.15),
+        transparent 34%
+      );
+    --status-ok-bg: rgba(39, 168, 103, 0.12);
+    --status-ok-text: #1d7a50;
+    --status-warn-bg: rgba(214, 144, 16, 0.14);
+    --status-warn-text: #9a670d;
+    --status-busy-bg: rgba(56, 138, 204, 0.12);
+    --status-busy-text: #236798;
+    --status-muted-bg: rgba(17, 36, 49, 0.08);
+    --status-muted-text: rgba(52, 72, 88, 0.76);
+    --info-bg: rgba(12, 139, 166, 0.1);
+    --info-text: #0c6476;
+    --info-muted-bg: rgba(17, 36, 49, 0.05);
+    --info-muted-text: rgba(52, 72, 88, 0.76);
+    --danger-bg: rgba(196, 57, 39, 0.12);
+    --danger-bg-soft: rgba(196, 57, 39, 0.08);
+    --danger-text: #a53a2a;
+    --success-bg: rgba(39, 168, 103, 0.14);
+    --success-text: #1d7a50;
+    --flag-bg: rgba(17, 36, 49, 0.08);
+    --flag-text: rgba(42, 60, 74, 0.8);
+    --metric-grid: rgba(17, 36, 49, 0.1);
+    --metric-surface: rgba(17, 36, 49, 0.05);
+    --placeholder-surface: rgba(17, 36, 49, 0.05);
+  }
+
+  :global(body) {
+    margin: 0;
+    font-family: "Space Grotesk", "Avenir Next", "Segoe UI", sans-serif;
+    background: var(--app-bg);
+    color: var(--app-text);
+  }
+
+  :global(html) {
+    background: var(--app-bg);
+  }
+
+  :global(*) {
+    box-sizing: border-box;
+  }
+
+  .shell {
+    position: relative;
+    display: grid;
+    gap: 1rem;
+    min-height: 100vh;
+    padding: 1.25rem;
+    overflow: hidden;
+    background: var(--app-shell-bg);
   }
 
   .background {
     position: absolute;
     inset: 0;
     background-image:
-      linear-gradient(rgba(125, 231, 243, 0.05) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(125, 231, 243, 0.05) 1px, transparent 1px);
+      linear-gradient(var(--app-grid-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--app-grid-line) 1px, transparent 1px);
     background-size: 48px 48px;
     mask-image: radial-gradient(circle at center, black, transparent 92%);
     pointer-events: none;
   }
 
+  .shell-controls,
   .auth-wrap,
   .dashboard {
     position: relative;
@@ -1001,12 +1214,47 @@
     margin: 0 auto;
   }
 
+  .shell-controls {
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .theme-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.7rem;
+    padding: 0.7rem 0.95rem;
+    border: 1px solid var(--app-panel-border);
+    border-radius: 999px;
+    background: var(--app-panel-bg);
+    color: var(--app-button-text);
+    backdrop-filter: blur(12px);
+    box-shadow: var(--app-card-shadow);
+  }
+
+  .theme-toggle span,
+  .theme-toggle strong {
+    display: block;
+    line-height: 1;
+  }
+
+  .theme-toggle span {
+    font-size: 0.72rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--app-text-muted);
+  }
+
+  .theme-toggle strong {
+    color: var(--app-text-strong);
+  }
+
   .auth-wrap {
     display: grid;
     grid-template-columns: minmax(0, 1.05fr) minmax(320px, 460px);
     gap: 1.25rem;
     align-items: center;
-    min-height: calc(100vh - 2.5rem);
+    min-height: calc(100vh - 5.5rem);
   }
 
   .hero-copy {
@@ -1015,10 +1263,10 @@
 
   .loading-card {
     padding: 1.6rem;
-    border: 1px solid rgba(255, 255, 255, 0.14);
+    border: 1px solid var(--app-panel-border-strong);
     border-radius: 1.5rem;
-    background: rgba(8, 18, 31, 0.9);
-    color: rgba(227, 236, 244, 0.82);
+    background: var(--app-panel-bg-strong);
+    color: var(--app-text-secondary);
   }
 
   .kicker {
@@ -1030,7 +1278,7 @@
       monospace;
     letter-spacing: 0.18em;
     text-transform: uppercase;
-    color: #7de7f3;
+    color: var(--app-link);
   }
 
   h1,
@@ -1051,7 +1299,7 @@
   .deck,
   .account-entry-copy p:last-child {
     line-height: 1.6;
-    color: rgba(221, 232, 240, 0.78);
+    color: var(--app-text-soft);
   }
 
   .source-note {
@@ -1060,13 +1308,13 @@
   }
 
   .source-note a {
-    color: #7de7f3;
+    color: var(--app-link);
     text-underline-offset: 0.2em;
     text-decoration-thickness: 0.08em;
   }
 
   .source-note a:hover {
-    color: #ffd37a;
+    color: var(--app-link-hover);
   }
 
   .dashboard {
@@ -1096,25 +1344,21 @@
   }
 
   .scope-button {
-    background: rgba(255, 255, 255, 0.08);
-    color: rgba(228, 237, 243, 0.84);
+    background: var(--app-button-bg);
+    color: var(--app-button-text-soft);
   }
 
   .scope-button.active {
-    background: linear-gradient(
-      135deg,
-      rgba(248, 184, 75, 0.22),
-      rgba(125, 231, 243, 0.18)
-    );
-    color: #f9fbfd;
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+    background: var(--app-active-bg);
+    color: var(--app-text-strong);
+    box-shadow: var(--app-active-shadow);
   }
 
   .scope-summary {
     padding: 0.75rem 0.95rem;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--app-panel-border);
     border-radius: 1.1rem;
-    background: rgba(8, 18, 31, 0.82);
+    background: var(--app-panel-bg);
     backdrop-filter: blur(12px);
   }
 
@@ -1123,13 +1367,13 @@
     font-size: 0.76rem;
     text-transform: uppercase;
     letter-spacing: 0.08em;
-    color: rgba(188, 205, 218, 0.62);
+    color: var(--app-text-muted);
   }
 
   .scope-summary strong {
     display: block;
     margin-top: 0.35rem;
-    color: #f5f8fb;
+    color: var(--app-text-strong);
   }
 
   .masthead {
@@ -1154,9 +1398,9 @@
     grid-template-columns: minmax(0, 1fr) minmax(320px, 440px);
     align-items: start;
     padding: 1rem;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--app-panel-border);
     border-radius: 1.25rem;
-    background: rgba(8, 18, 31, 0.82);
+    background: var(--app-panel-bg);
     backdrop-filter: blur(12px);
   }
 
@@ -1185,9 +1429,9 @@
   .loading-state,
   .empty-state,
   .banner {
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--app-panel-border);
     border-radius: 1.25rem;
-    background: rgba(8, 18, 31, 0.82);
+    background: var(--app-panel-bg);
     backdrop-filter: blur(12px);
   }
 
@@ -1201,7 +1445,7 @@
     font-size: 0.76rem;
     text-transform: uppercase;
     letter-spacing: 0.08em;
-    color: rgba(188, 205, 218, 0.62);
+    color: var(--app-text-muted);
   }
 
   .toolbar-box strong,
@@ -1209,7 +1453,7 @@
     display: block;
     margin-top: 0.35rem;
     font-size: 1.12rem;
-    color: #f5f8fb;
+    color: var(--app-text-strong);
   }
 
   .toolbar-box.wide strong {
@@ -1229,16 +1473,16 @@
 
   .search span {
     font-size: 0.82rem;
-    color: rgba(219, 231, 239, 0.78);
+    color: var(--app-text-secondary);
   }
 
   .search input {
     width: 100%;
     padding: 0.9rem 1rem;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--app-panel-border);
     border-radius: 999px;
-    background: rgba(6, 13, 23, 0.72);
-    color: #f5f8fb;
+    background: var(--app-field-bg);
+    color: var(--app-text-strong);
     font: inherit;
   }
 
@@ -1251,16 +1495,16 @@
     font-size: 0.76rem;
     text-transform: uppercase;
     letter-spacing: 0.08em;
-    color: rgba(188, 205, 218, 0.62);
+    color: var(--app-text-muted);
   }
 
   .page-size select {
     min-width: 5.75rem;
     padding: 0.85rem 1rem;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--app-panel-border);
     border-radius: 999px;
-    background: rgba(6, 13, 23, 0.72);
-    color: #f5f8fb;
+    background: var(--app-field-bg);
+    color: var(--app-text-strong);
     font: inherit;
   }
 
@@ -1269,29 +1513,25 @@
     gap: 0.25rem;
     padding: 0.24rem;
     border-radius: 999px;
-    background: rgba(255, 255, 255, 0.04);
+    background: var(--app-toggle-bg);
   }
 
   .view-button {
     padding: 0.62rem 0.9rem;
     background: transparent;
-    color: rgba(219, 231, 239, 0.8);
+    color: var(--app-text-secondary);
   }
 
   .view-button.active {
-    background: linear-gradient(
-      135deg,
-      rgba(248, 184, 75, 0.22),
-      rgba(125, 231, 243, 0.18)
-    );
-    color: #f9fbfd;
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+    background: var(--app-active-bg);
+    color: var(--app-text-strong);
+    box-shadow: var(--app-active-shadow);
   }
 
   .filter-note {
     padding: 0.65rem 0.9rem;
     border-radius: 1rem;
-    background: rgba(255, 255, 255, 0.04);
+    background: var(--app-panel-bg-soft);
   }
 
   .banner,
@@ -1301,13 +1541,13 @@
   }
 
   .banner.error {
-    color: #ffc2ba;
-    background: rgba(103, 16, 10, 0.35);
+    color: var(--app-banner-error-text);
+    background: var(--app-banner-error-bg);
   }
 
   .banner.neutral {
-    color: #d7eef6;
-    background: rgba(12, 74, 93, 0.34);
+    color: var(--app-banner-neutral-text);
+    background: var(--app-banner-neutral-bg);
   }
 
   .grid {
@@ -1326,9 +1566,9 @@
     justify-content: space-between;
     gap: 1rem;
     padding: 0.85rem 0.95rem;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--app-panel-border);
     border-radius: 1.25rem;
-    background: rgba(8, 18, 31, 0.82);
+    background: var(--app-panel-bg);
     backdrop-filter: blur(12px);
   }
 
@@ -1339,7 +1579,7 @@
 
   .pagination-summary strong {
     font-size: 1.05rem;
-    color: #f5f8fb;
+    color: var(--app-text-strong);
   }
 
   .pagination-summary span {
@@ -1347,7 +1587,7 @@
     font-size: 0.76rem;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: rgba(188, 205, 218, 0.62);
+    color: var(--app-text-muted);
   }
 
   .pagination-controls {
@@ -1372,7 +1612,7 @@
     align-items: center;
     justify-content: center;
     min-width: 2rem;
-    color: rgba(188, 205, 218, 0.62);
+    color: var(--app-text-muted);
   }
 
   button {
@@ -1387,9 +1627,16 @@
     cursor: pointer;
   }
 
+  button:focus-visible,
+  .search input:focus,
+  .page-size select:focus {
+    outline: 2px solid var(--app-focus-ring);
+    outline-offset: 2px;
+  }
+
   .outline {
-    background: rgba(255, 255, 255, 0.08);
-    color: #e4edf3;
+    background: var(--app-button-bg);
+    color: var(--app-button-text);
   }
 
   .outline:disabled {

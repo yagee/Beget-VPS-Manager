@@ -180,7 +180,7 @@
     gap: 0.75rem;
     padding: 0.9rem;
     border-radius: 1rem;
-    background: rgba(255, 255, 255, 0.04);
+    background: var(--metric-surface);
   }
 
   .metric.compact {
@@ -203,7 +203,7 @@
 
   .head p {
     font-size: 0.84rem;
-    color: rgba(209, 221, 231, 0.82);
+    color: var(--app-text-secondary);
   }
 
   .head strong {
@@ -233,7 +233,7 @@
   }
 
   .grid {
-    stroke: rgba(255, 255, 255, 0.1);
+    stroke: var(--metric-grid);
     stroke-width: 1;
   }
 
@@ -261,11 +261,11 @@
     font-size: 0.72rem;
     text-transform: uppercase;
     letter-spacing: 0.08em;
-    color: rgba(185, 203, 218, 0.64);
+    color: var(--app-text-muted);
   }
 
   .summary strong {
-    color: #f5f9fb;
+    color: var(--app-text-strong);
   }
 
   .metric.compact .summary span {
@@ -275,12 +275,12 @@
   .placeholder {
     padding: 1rem 0.9rem;
     border-radius: 0.9rem;
-    background: rgba(255, 255, 255, 0.04);
-    color: rgba(222, 231, 237, 0.8);
+    background: var(--placeholder-surface);
+    color: var(--app-text-secondary);
   }
 
   .placeholder.error {
-    background: rgba(255, 109, 91, 0.1);
-    color: #ffbdb3;
+    background: var(--danger-bg-soft);
+    color: var(--danger-text);
   }
 </style>
